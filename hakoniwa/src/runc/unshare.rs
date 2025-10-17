@@ -181,7 +181,7 @@ fn initialize_devfs(target_relpath: &str) -> Result<()> {
     let pts_target_relpath = format!("{target_relpath}/pts");
     let pts_flags = MsFlags::MS_NOSUID | MsFlags::MS_NOEXEC;
     sys::mkdir_p(&pts_target_relpath)?;
-    sys::mount_filesystem("devpts", "devpts", pts_target_relpath, pts_flags)?;
+    sys::mount_filesystem_with_data("devpts", "devpts", pts_target_relpath, pts_flags, "newinstance,ptmxmode=0666,mode=620")?;
 
     let ptmx_original = "pts/ptmx".to_string();
     let ptmx_link = format!("{target_relpath}/ptmx");

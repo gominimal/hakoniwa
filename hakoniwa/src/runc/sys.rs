@@ -254,6 +254,24 @@ pub(crate) fn mount_filesystem<P1: AsRef<Path> + Debug, P2: AsRef<Path> + Debug>
     ))
 }
 
+pub(crate) fn mount_filesystem_with_data<P1: AsRef<Path> + Debug, P2: AsRef<Path> + Debug>(
+    fstype: &str,
+    source: P1,
+    target: P2,
+    flags: MsFlags,
+    data: &str
+) -> Result<()> {
+    let source = source.as_ref();
+    let target = target.as_ref();
+    map_err!(mount::mount(
+        Some(source),
+        target,
+        Some(fstype),
+        flags,
+        Some(data)
+    ))
+}
+
 pub(crate) fn mount_make_private<P: AsRef<Path> + Debug>(target: P) -> Result<()> {
     let target = target.as_ref();
     let flags = MsFlags::MS_PRIVATE | MsFlags::MS_REC;

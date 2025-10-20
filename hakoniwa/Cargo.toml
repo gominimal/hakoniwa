@@ -13,8 +13,8 @@ edition = "2024"
 
 [dependencies]
 bincode = { version = "2.0.1", features = ["serde"] }
-bitflags = "2.9.4"
-caps = "0.5.5"
+bitflags = "2.10.0"
+caps = "0.5.6"
 landlock = { version = "0.4.3", optional = true }
 libc = "0.2.177"
 libseccomp = { version = "0.4.0", optional = true }

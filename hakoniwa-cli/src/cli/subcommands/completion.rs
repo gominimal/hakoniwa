@@ -20,7 +20,7 @@ impl CompletionCommand {
 
         // ARG: --file
         if let Some(file) = &self.file {
-            let mut buf = File::create(file).map_err(|e| anyhow!("--file: {}", e))?;
+            let mut buf = File::create(file).map_err(|e| anyhow!("--file: {e}"))?;
             Self::print_completions(self.shell, &mut cmd, &mut buf);
         } else {
             let mut buf = io::stdout();

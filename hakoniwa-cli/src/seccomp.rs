@@ -142,7 +142,7 @@ fn translate_action(action: &str, errno: i32) -> Result<Action> {
         "SCMP_ACT_NOTIFY" => Action::Notify,
         "SCMP_ACT_TRACE" => Action::Trace(errno as u16),
         "SCMP_ACT_TRAP" => Action::Trap,
-        _ => Err(anyhow!(format!("unknown action {:?}", action)))?,
+        _ => Err(anyhow!(format!("unknown action {action:?}")))?,
     })
 }
 
@@ -165,7 +165,7 @@ fn translate_arch(arch: &str) -> Result<Arch> {
         "SCMP_ARCH_S390" => Arch::S390,
         "SCMP_ARCH_S390X" => Arch::S390x,
         "SCMP_ARCH_RISCV64" => Arch::Riscv64,
-        _ => Err(anyhow!(format!("unknown arch {:?}", arch)))?,
+        _ => Err(anyhow!(format!("unknown arch {arch:?}")))?,
     })
 }
 
@@ -190,7 +190,7 @@ fn translate_argcmp_op(op: &str) -> Result<ArgCmpOp> {
         "SCMP_CMP_GE" => ArgCmpOp::Ge,
         "SCMP_CMP_GT" => ArgCmpOp::Gt,
         "SCMP_CMP_MASKED_EQ" => ArgCmpOp::MaskedEq,
-        _ => Err(anyhow!(format!("unknown argcmp op {:?}", op)))?,
+        _ => Err(anyhow!(format!("unknown argcmp op {op:?}")))?,
     })
 }
 

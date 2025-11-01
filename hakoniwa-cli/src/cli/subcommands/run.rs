@@ -174,12 +174,12 @@ impl RunCommand {
         container.runctl(Runctl::MountFallback);
 
         // ARG: --config
-        let cfg = config::load(cfg).map_err(|e| anyhow!("--config: {}", e))?;
+        let cfg = config::load(cfg).map_err(|e| anyhow!("--config: {e}"))?;
 
         // CFG: namespaces
         for namespace in cfg.namespaces {
             let ns = Self::str_to_namespace(&namespace.nstype)
-                .map_err(|e| anyhow!("--config: namespace: {}", e))?;
+                .map_err(|e| anyhow!("--config: namespace: {e}"))?;
             if namespace.share {
                 container.share(ns);
             } else {
@@ -214,13 +214,13 @@ impl RunCommand {
 
             if mount.rw {
                 fs::canonicalize(host_path)
-                    .map_err(|_| anyhow!("--config: mount: path {:?} does not exist", host_path))
+                    .map_err(|_| anyhow!("--config: mount: path {host_path:?} does not exist"))
                     .map(|host_path| {
                         container.bindmount_rw(&host_path.to_string_lossy(), container_path)
                     })?;
             } else {
                 fs::canonicalize(host_path)
-                    .map_err(|_| anyhow!("--config: mount: path {:?} does not exist", host_path))
+                    .map_err(|_| anyhow!("--config: mount: path {host_path:?} does not exist"))
                     .map(|host_path| {
                         container.bindmount_ro(&host_path.to_string_lossy(), container_path)
                     })?;
@@ -271,7 +271,7 @@ impl RunCommand {
         // CFG: network
         if let Some(network) = cfg.network {
             Self::configure_network(&mut container, &network.mode, &network.options)
-                .map_err(|e| anyhow!("--config: network: {}", e))?;
+                .map_err(|e| anyhow!("--config: network: {e}"))?;
         }
 
         // CFG: limits
@@ -281,7 +281,7 @@ impl RunCommand {
                 limit_walltime = Some(limit.value);
             } else {
                 let lim = Self::str_to_rlimit(&limit.rtype)
-                    .map_err(|e| anyhow!("--config: limit: {}", e))?;
+                    .map_err(|e| anyhow!("--config: limit: {e}"))?;
                 container.setrlimit(lim, limit.value, limit.value);
             }
         }
@@ -291,7 +291,7 @@ impl RunCommand {
             let mut ruleset = Ruleset::default();
             for resource in landlock.resources {
                 let res = Self::str_to_landlock_resource(&resource.rtype)
-                    .map_err(|e| anyhow!("--config: landlock: {}", e))?;
+                    .map_err(|e| anyhow!("--config: landlock: {e}"))?;
                 if resource.unrestrict {
                     ruleset.unrestrict(res);
                 } else {
@@ -301,13 +301,13 @@ impl RunCommand {
 
             for rule in landlock.fs {
                 let access = FsAccess::from_str(&rule.access)
-                    .map_err(|e| anyhow!("--config: landlock: {}", e))?;
+                    .map_err(|e| anyhow!("--config: landlock: {e}"))?;
                 ruleset.add_fs_rule(&rule.path, access);
             }
 
             for rule in landlock.net {
                 let access = Self::str_to_landlock_net_access(&rule.access)
-                    .map_err(|e| anyhow!("--config: landlock: {}", e))?;
+                    .map_err(|e| anyhow!("--config: landlock: {e}"))?;
                 ruleset.add_net_rule(rule.port, access);
             }
 
@@ -317,7 +317,7 @@ impl RunCommand {
         // CFG: seccomp
         let seccomp = cfg.seccomp.path.unwrap_or("podman".to_string());
         Self::configure_seccomp(&mut container, &seccomp)
-            .map_err(|e| anyhow!("--config: seccomp: {}", e))?;
+            .map_err(|e| anyhow!("--config: seccomp: {e}"))?;
 
         // ARG: -- <COMMAND>...
         // CFG: command::cmdline
@@ -388,7 +388,7 @@ impl RunCommand {
         let mut rootfs = self.rootfs.clone();
         if let Some((path, options)) = &self.rootdir {
             fs::canonicalize(path)
-                .map_err(|_| anyhow!("--rootdir: path {:?} does not exist", path))
+                .map_err(|_| anyhow!("--rootdir: path {path:?} does not exist"))
                 .map(|path| {
                     container.rootdir(&path);
 
@@ -410,7 +410,7 @@ impl RunCommand {
             #[allow(clippy::collapsible_if)]
             if rootfs != "none" {
                 fs::canonicalize(rootfs)
-                    .map_err(|_| anyhow!("--config: rootfs: path {:?} does not exist", rootfs))
+                    .map_err(|_| anyhow!("--config: rootfs: path {rootfs:?} does not exist"))
                     .map(|path| container.rootfs(&path))?
                     .map_err(|e| anyhow!("--config: rootfs: {e}"))?;
             }
@@ -419,7 +419,7 @@ impl RunCommand {
         // ARG: --bindmount-ro
         for (host_path, container_path) in self.bindmount_ro.iter() {
             fs::canonicalize(host_path)
-                .map_err(|_| anyhow!("--bindmount-ro: path {:?} does not exist", host_path))
+                .map_err(|_| anyhow!("--bindmount-ro: path {host_path:?} does not exist"))
                 .map(|host_path| {
                     container.bindmount_ro(&host_path.to_string_lossy(), container_path)
                 })?;
@@ -428,7 +428,7 @@ impl RunCommand {
         // ARG: --bindmount-rw
         for (host_path, container_path) in self.bindmount_rw.iter() {
             fs::canonicalize(host_path)
-                .map_err(|_| anyhow!("--bindmount-rw: path {:?} does not exist", host_path))
+                .map_err(|_| anyhow!("--bindmount-rw: path {host_path:?} does not exist"))
                 .map(|host_path| {
                     container.bindmount_rw(&host_path.to_string_lossy(), container_path)
                 })?;
@@ -450,7 +450,7 @@ impl RunCommand {
                 Some(dir.to_string())
             } else {
                 let dir = fs::canonicalize(workdir)
-                    .map_err(|_| anyhow!("--workdir: path {:?} does not exist", workdir))?;
+                    .map_err(|_| anyhow!("--workdir: path {workdir:?} does not exist"))?;
                 container.bindmount_rw(&dir.to_string_lossy(), &dir.to_string_lossy());
                 Some(dir.to_string_lossy().to_string())
             }
@@ -470,7 +470,7 @@ impl RunCommand {
 
         // ARG: --userns
         if let Some(mode) = &self.userns {
-            Self::configure_userns(&mut container, mode).map_err(|e| anyhow!("--userns: {}", e))?;
+            Self::configure_userns(&mut container, mode).map_err(|e| anyhow!("--userns: {e}"))?;
         }
 
         // ARG: --uidmap
@@ -499,7 +499,7 @@ impl RunCommand {
         // ARG: --network
         if let Some((mode, options)) = &self.network {
             Self::configure_network(&mut container, mode, options)
-                .map_err(|e| anyhow!("--network: {}", e))?;
+                .map_err(|e| anyhow!("--network: {e}"))?;
         }
 
         // ARG: --limit-as, --limit-core, --limit-cpu, --limit-fsize, --limit-nofile
@@ -522,7 +522,7 @@ impl RunCommand {
             if let Some(resources) = &self.landlock_restrict {
                 for resource in resources.split(&[',']) {
                     let resource = Self::str_to_landlock_resource(resource)
-                        .map_err(|e| anyhow!("--landlock-restrict: {}", e))?;
+                        .map_err(|e| anyhow!("--landlock-restrict: {e}"))?;
                     ruleset.restrict(resource, CompatMode::Enforce);
                 }
             }
@@ -573,7 +573,7 @@ impl RunCommand {
         // ARG: --seccomp
         let seccomp = &self.seccomp.clone().expect("--seccomp: missing value");
         Self::configure_seccomp(&mut container, seccomp)
-            .map_err(|e| anyhow!("--seccomp: {}", e))?;
+            .map_err(|e| anyhow!("--seccomp: {e}"))?;
 
         // ARG: -- <COMMAND>...
         let (prog, argv) = (&self.argv[0], &self.argv[1..]);
@@ -605,9 +605,9 @@ impl RunCommand {
             "auto" => {
                 let user = User::from_uid(Uid::current())?.expect("User is some");
                 let uidmaps = Self::file_to_idmaps("/etc/subuid", user.uid.as_raw(), &user.name)
-                    .map_err(|e| anyhow!("/etc/subuid: {}", e))?;
+                    .map_err(|e| anyhow!("/etc/subuid: {e}"))?;
                 let gidmaps = Self::file_to_idmaps("/etc/subgid", user.gid.as_raw(), &user.name)
-                    .map_err(|e| anyhow!("/etc/subgid: {}", e))?;
+                    .map_err(|e| anyhow!("/etc/subgid: {e}"))?;
                 container.uidmaps(&uidmaps);
                 container.gidmaps(&gidmaps);
             }

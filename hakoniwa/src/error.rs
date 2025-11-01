@@ -9,9 +9,6 @@ pub enum Error {
 
     #[error("{0}")]
     UnError(String),
-
-    #[error(transparent)]
-    EtcfsError(#[from] EtcfsErrorKind),
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -30,16 +27,4 @@ pub enum ProcessErrorKind {
     SetupNetworkFailed(String),
     #[error("child exit status gone")]
     ChildExitStatusGone,
-}
-
-#[derive(thiserror::Error, Debug)]
-pub enum EtcfsErrorKind {
-    #[error("parse line `{line}..` failed: {errmsg}")]
-    InvalidLine { line: String, errmsg: String },
-    #[error("not enough parts")]
-    NotEnoughParts,
-    #[error(transparent)]
-    StdIoError(#[from] std::io::Error),
-    #[error(transparent)]
-    StdNumParseIntError(#[from] std::num::ParseIntError),
 }

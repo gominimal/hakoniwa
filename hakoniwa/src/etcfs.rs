@@ -1,3 +1,4 @@
+mod error;
 mod group;
 mod passwd;
 mod typeparser;

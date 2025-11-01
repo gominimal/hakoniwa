@@ -1,4 +1,4 @@
-pub type Result<T> = std::result::Result<T, Error>;
+pub(crate) type Result<T> = std::result::Result<T, Error>;
 
 #[allow(clippy::enum_variant_names)]
 #[derive(thiserror::Error, Debug)]

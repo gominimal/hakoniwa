@@ -2,8 +2,7 @@ use std::cmp;
 use std::fs;
 use std::path::PathBuf;
 
-use super::typeparser::*;
-use crate::error::*;
+use super::{error::*, typeparser::*};
 
 #[derive(Debug, Clone)]
 pub(crate) struct GroupEntry {
@@ -39,10 +38,10 @@ impl GroupFile {
 
     pub(crate) fn entries(&self) -> Result<Vec<GroupEntry>> {
         let mut entries = vec![];
-        let content = fs::read_to_string(&self.path).map_err(EtcfsErrorKind::StdIoError)?;
+        let content = fs::read_to_string(&self.path)?;
         for line in content.lines() {
             entries.push(GroupEntry::from_line(line).map_err(|err| {
-                EtcfsErrorKind::InvalidLine {
+                Error::InvalidLine {
                     line: line[..cmp::min(line.len(), 8)].to_string(),
                     errmsg: err.to_string(),
                 }

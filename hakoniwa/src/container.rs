@@ -164,9 +164,10 @@ impl Container {
     /// When use `/` as rootfs, it only mount following subdirectories: `/bin`,
     /// `/etc`, `/lib`, `/lib64`, `/lib32`, `/sbin`, `/usr`.
     pub fn rootfs<P: AsRef<Path>>(&mut self, host_path: P) -> Result<&mut Self> {
-        self.rootfs_imp(host_path)
-            .map_err(UnErrorKind::StdIoError)?;
-        Ok(self)
+        match self.rootfs_imp(host_path) {
+            Ok(_) => Ok(self),
+            Err(err) => Err(Error::UnError(format!("io: #{err}")))
+        }
     }
 
     /// Container#rootfs IMP.

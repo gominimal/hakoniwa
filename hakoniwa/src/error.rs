@@ -7,19 +7,11 @@ pub enum Error {
     #[error(transparent)]
     ProcessError(#[from] ProcessErrorKind),
 
-    #[error(transparent)]
-    UnError(#[from] UnErrorKind),
+    #[error("{0}")]
+    UnError(String),
 
     #[error(transparent)]
     EtcfsError(#[from] EtcfsErrorKind),
-
-    #[cfg(feature = "landlock")]
-    #[error("{0}")]
-    LandlockError(String),
-
-    #[cfg(feature = "seccomp")]
-    #[error("{0}")]
-    SeccompError(String),
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -38,12 +30,6 @@ pub enum ProcessErrorKind {
     SetupNetworkFailed(String),
     #[error("child exit status gone")]
     ChildExitStatusGone,
-}
-
-#[derive(thiserror::Error, Debug)]
-pub enum UnErrorKind {
-    #[error(transparent)]
-    StdIoError(#[from] std::io::Error),
 }
 
 #[derive(thiserror::Error, Debug)]

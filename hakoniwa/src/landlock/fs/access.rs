@@ -35,8 +35,8 @@ impl std::str::FromStr for Access {
                 "x" => access |= Self::X,
                 "-" => (),
                 chr => {
-                    let err = format!("unknown access {chr:?}");
-                    Err(Self::Err::LandlockError(err))?
+                    let err = format!("landlock: unknown access {chr:?}");
+                    Err(Self::Err::UnError(err))?
                 }
             };
         }

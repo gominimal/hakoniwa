@@ -174,7 +174,7 @@ impl Container {
     fn rootfs_imp<P: AsRef<Path>>(&mut self, dir: P) -> std::result::Result<(), std::io::Error> {
         let dir = fs::canonicalize(&dir)?;
         let mut entries = vec![];
-        if *dir == *"/" {
+        if dir.as_os_str() == "/" {
             for entry in ["/bin", "/etc", "/lib", "/lib64", "/lib32", "/sbin", "/usr"] {
                 entries.push(PathBuf::from(entry));
             }

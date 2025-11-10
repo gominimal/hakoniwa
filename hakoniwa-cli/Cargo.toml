@@ -1,6 +1,6 @@
 [package]
 name = "hakoniwa-cli"
-version = "1.2.3"
+version = "1.2.4"
 description = "Process isolation for Linux using namespaces, resource limits, landlock and seccomp."
 keywords = ["security", "sandbox", "container", "process"]
 categories = ["security"]
@@ -27,7 +27,7 @@ serde_json = "1.0.145"
 toml = "0.9.8"
 
 [dependencies.hakoniwa]
-version = "1.2.3"
+version = "1.2.4"
 path = "../hakoniwa"
 features = ["landlock", "seccomp"]
 

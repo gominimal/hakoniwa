@@ -74,3 +74,9 @@ fn main() -> Result<()> {
 - [Handling IO](./examples/command-handling-io.rs)
 - [Metric](./examples/command-metric.rs)
 - [docs.rs](https://docs.rs/hakoniwa)
+
+## Troubleshooting
+
+If you receive `hakoniwa: ... => Operation not permitted (os error 1)`, read following docs:
+
+- [Permission denied](./docs/troubleshooting-eperm)

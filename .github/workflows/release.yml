@@ -32,7 +32,7 @@ jobs:
       - name: Run cargo build
         run: |
           cargo build --target ${{ matrix.target }} --release --locked
-          mkdir dist && mv target/${{ matrix.target }}/release/hakoniwa dist
+          mkdir dist && mv target/${{ matrix.target }}/release/hakoniwa dist && cp -r etc dist
           tar -czvf hakoniwa-${{ matrix.target }}.tar.gz -C dist .
       - name: Upload artifact
         uses: actions/upload-artifact@v5
@@ -74,7 +74,7 @@ jobs:
       - name: Run cargo build
         run: |
           cargo build --target ${{ matrix.target }} --release --locked
-          mkdir dist && mv target/${{ matrix.target }}/release/hakoniwa dist
+          mkdir dist && mv target/${{ matrix.target }}/release/hakoniwa dist && cp -r etc dist
           tar -czvf hakoniwa-${{ matrix.target }}.tar.gz -C dist .
       - name: Upload artifact
         uses: actions/upload-artifact@v5

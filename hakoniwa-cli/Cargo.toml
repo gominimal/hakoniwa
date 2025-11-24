@@ -13,9 +13,9 @@ edition = "2024"
 
 [dependencies]
 anyhow = "1.0.100"
-clap = { version = "4.5.52", features = ["derive"] }
+clap = { version = "4.5.53", features = ["derive"] }
 clap-verbosity-flag = "3.0.4"
-clap_complete = "4.5.60"
+clap_complete = "4.5.61"
 env_logger = "0.11.8"
 glob = "0.3.3"
 log = "0.4.28"
@@ -32,7 +32,7 @@ path = "../hakoniwa"
 features = ["landlock", "seccomp"]
 
 [dev-dependencies]
-trycmd = "0.15.10"
+trycmd = "0.15.11"
 
 [[bin]]
 name = "hakoniwa"

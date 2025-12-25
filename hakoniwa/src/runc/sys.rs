@@ -259,7 +259,7 @@ pub(crate) fn mount_filesystem_with_data<P1: AsRef<Path> + Debug, P2: AsRef<Path
     source: P1,
     target: P2,
     flags: MsFlags,
-    data: &str
+    data: &str,
 ) -> Result<()> {
     let source = source.as_ref();
     let target = target.as_ref();

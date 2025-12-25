@@ -572,8 +572,7 @@ impl RunCommand {
 
         // ARG: --seccomp
         let seccomp = &self.seccomp.clone().expect("--seccomp: missing value");
-        Self::configure_seccomp(&mut container, seccomp)
-            .map_err(|e| anyhow!("--seccomp: {e}"))?;
+        Self::configure_seccomp(&mut container, seccomp).map_err(|e| anyhow!("--seccomp: {e}"))?;
 
         // ARG: -- <COMMAND>...
         let (prog, argv) = (&self.argv[0], &self.argv[1..]);

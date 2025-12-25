@@ -166,7 +166,7 @@ impl Container {
     pub fn rootfs<P: AsRef<Path>>(&mut self, host_path: P) -> Result<&mut Self> {
         match self.rootfs_imp(host_path) {
             Ok(_) => Ok(self),
-            Err(err) => Err(Error::UnError(format!("io: #{err}")))
+            Err(err) => Err(Error::UnError(format!("io: #{err}"))),
         }
     }
 

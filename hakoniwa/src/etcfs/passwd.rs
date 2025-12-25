@@ -40,12 +40,12 @@ impl PasswdFile {
         let mut entries = vec![];
         let content = fs::read_to_string(&self.path)?;
         for line in content.lines() {
-            entries.push(PasswdEntry::from_line(line).map_err(|err| {
-                Error::InvalidLine {
+            entries.push(
+                PasswdEntry::from_line(line).map_err(|err| Error::InvalidLine {
                     line: line[..cmp::min(line.len(), 8)].to_string(),
                     errmsg: err.to_string(),
-                }
-            })?);
+                })?,
+            );
         }
         Ok(entries)
     }

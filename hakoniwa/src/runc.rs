@@ -1,3 +1,4 @@
+mod close_fds;
 mod error;
 mod rlimit;
 mod sys;
@@ -100,6 +101,9 @@ fn exec_imp(
         sys::dup2_stderr(&stderr)?;
         drop(stderr);
     }
+
+    // Close extra FDs.
+    close_fds::close_extra_fds(reader, writer)?;
 
     // Die with parent.
     sys::set_pdeathsig(Signal::SIGKILL)?;

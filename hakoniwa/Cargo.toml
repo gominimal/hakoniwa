@@ -15,6 +15,7 @@ edition = "2024"
 bincode = { version = "2.0.1", features = ["serde"] }
 bitflags = "2.10.0"
 caps = "0.5.6"
+close_fds = "0.3.2"
 landlock = { version = "0.4.4", optional = true }
 libc = "0.2.178"
 libseccomp = { version = "0.4.0", optional = true }

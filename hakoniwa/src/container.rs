@@ -445,18 +445,6 @@ impl Container {
             .collect()
     }
 
-    /// Returns setup operations in bit flags.
-    pub(crate) fn get_mainp_setup_operations(&self) -> u8 {
-        let mut operations = 0;
-        if self.needs_mainp_setup_ugidmap() {
-            operations |= crate::runc::SETUP_UGIDMAP;
-        }
-        if self.needs_mainp_setup_network() {
-            operations |= crate::runc::SETUP_NETWORK;
-        }
-        operations
-    }
-
     /// Returns true if the container needs the main process to setup
     /// the [ug]idmap.
     pub(crate) fn needs_mainp_setup_ugidmap(&self) -> bool {

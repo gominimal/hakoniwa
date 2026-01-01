@@ -9,10 +9,6 @@ pub(crate) enum Error {
     StdNulError(#[from] std::ffi::NulError),
     #[error("{0}")]
     SysError(String),
-    #[error("runc::Error::SetupUGidmapFailed")]
-    SetupUGidmapFailed,
-    #[error("runc::Error::SetupNetworkFailed")]
-    SetupNetworkFailed,
     #[error("mount source path must be absolute: {0}")]
     MountSourcePathMustBeAbsolute(String),
     #[error("mount target path must be absolute: {0}")]

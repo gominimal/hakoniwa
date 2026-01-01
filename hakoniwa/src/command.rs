@@ -191,8 +191,8 @@ impl Command {
                     }
                     // The main process setup failed due to:
                     //
-                    //  - SetupNetworkFailed: command pasta not found, etc.
                     //  - SetupUGidmapFailed: uid range not allowed, etc.
+                    //  - SetupNetworkFailed: command pasta not found, etc.
                     //  - StdIoError: failed to write to pipe cuz the child process force killed by taskmgr.
                     Err(e) => {
                         _ = signal::kill(child, Signal::SIGKILL);
@@ -344,51 +344,45 @@ impl Command {
         log::debug!("================================");
     }
 
-    /// Setup network/[ug]idmap.
+    /// Setup [ug]idmap, network, cgroups, etc.
     fn mainp_setup(
         &self,
         reader: &mut PipeReader,
         writer: &mut PipeWriter,
         child: Pid,
     ) -> Result<u8> {
-        if self.container.get_mainp_setup_operations() == 0 {
-            return Ok(0);
-        }
+        loop {
+            // Receive the child process's request.
+            let mut request = [0];
+            reader
+                .read_exact(&mut request)
+                .map_err(ProcessErrorKind::StdIoError)?;
 
-        // Receive the child process's request.
-        let mut request = [0];
-        reader
-            .read_exact(&mut request)
-            .map_err(ProcessErrorKind::StdIoError)?;
-
-        // The child process exited early due to some errors, so there is no need to do any setup.
-        if request[0] == runc::FIN {
-            return Ok(1);
-        }
-
-        // Setup [ug]idmap.
-        if request[0] & runc::SETUP_UGIDMAP == runc::SETUP_UGIDMAP {
-            let result = self.mainp_setup_ugidmap(child);
-            if result.is_err() {
-                _ = writer.write_all(&[runc::SETUP_UGIDMAP]);
-                result?;
+            // The child process exited early due to some errors, so there is no need to do any setup.
+            if request[0] == runc::FIN {
+                return Ok(1);
             }
-        };
 
-        // Setup network.
-        if request[0] & runc::SETUP_NETWORK == runc::SETUP_NETWORK {
-            let result = self.mainp_setup_network(child);
-            if result.is_err() {
-                _ = writer.write_all(&[runc::SETUP_NETWORK]);
-                result?;
-            }
-        };
+            // Setup [ug]idmap.
+            if request[0] & runc::SETUP_UGIDMAP == runc::SETUP_UGIDMAP {
+                self.mainp_setup_ugidmap(child)?;
+            };
 
-        // Setup done.
-        writer
-            .write_all(&[0])
-            .map_err(ProcessErrorKind::StdIoError)?;
-        Ok(0)
+            // Setup network.
+            if request[0] & runc::SETUP_NETWORK == runc::SETUP_NETWORK {
+                self.mainp_setup_network(child)?;
+            };
+
+            // Send a response back to the child process.
+            writer
+                .write_all(&[0])
+                .map_err(ProcessErrorKind::StdIoError)?;
+
+            // No more setups.
+            if request[0] & runc::SETUP_SUCCESS == runc::SETUP_SUCCESS {
+                return Ok(0);
+            };
+        }
     }
 
     /// Setup [ug]idmap.

@@ -1,7 +1,14 @@
-use landlock::*;
+use landlock::{
+    ABI as LandlockABI, Access as LandlockAccess, AccessFs as LandlockAccessFs,
+    AccessNet as LandlockAccessNet, BitFlags as LandlockBitFlags,
+    CompatLevel as LandlockCompatLevel, Compatible as LandlockCompatible,
+    NetPort as LandlockNetPort, Ruleset as LandlockRuleset, RulesetAttr as LandlockRulesetAttr,
+    RulesetCreated as LandlockRulesetCreated, RulesetCreatedAttr as LandlockRulesetCreatedAttr,
+    RulesetError as LandlockRulesetError, path_beneath_rules as landlock_path_beneath_rules,
+};
 
 use super::error::*;
-use crate::{Container, Runctl, landlock as ll};
+use crate::{Container, Runctl};
 
 pub(crate) fn load(container: &Container) -> Result<()> {
     let nnp = !container.runctl.contains(&Runctl::AllowNewPrivs);
@@ -11,28 +18,30 @@ pub(crate) fn load(container: &Container) -> Result<()> {
     }
 }
 
-fn load_imp(ruleset: &ll::Ruleset, nnp: bool) -> Result<()> {
+fn load_imp(ruleset: &crate::landlock::Ruleset, nnp: bool) -> Result<()> {
     if ruleset.restrictions.is_empty() {
         return Ok(());
     }
 
-    let abi = ABI::V5;
-    let mut ctx = Ruleset::default();
+    let abi = LandlockABI::V5;
+    let mut ctx = LandlockRuleset::default();
 
     for (resource, mode) in ruleset.restrictions.iter() {
         ctx = match resource {
-            ll::Resource::FS => handle_access_fs(ctx, abi)?,
-            ll::Resource::NET_TCP_BIND => handle_access_net(ctx, resource, mode)?,
-            ll::Resource::NET_TCP_CONNECT => handle_access_net(ctx, resource, mode)?,
+            crate::landlock::Resource::FS => handle_access_fs(ctx, abi)?,
+            crate::landlock::Resource::NET_TCP_BIND => handle_access_net(ctx, resource, mode)?,
+            crate::landlock::Resource::NET_TCP_CONNECT => handle_access_net(ctx, resource, mode)?,
         }
     }
 
-    let mut ctx = ctx.set_compatibility(CompatLevel::default()).create()?;
+    let mut ctx = ctx
+        .set_compatibility(LandlockCompatLevel::default())
+        .create()?;
     for (resource, _) in ruleset.restrictions.iter() {
         ctx = match resource {
-            ll::Resource::FS => add_rules_fs(ctx, abi, ruleset)?,
-            ll::Resource::NET_TCP_BIND => add_rules_net(ctx, ruleset, resource)?,
-            ll::Resource::NET_TCP_CONNECT => add_rules_net(ctx, ruleset, resource)?,
+            crate::landlock::Resource::FS => add_rules_fs(ctx, abi, ruleset)?,
+            crate::landlock::Resource::NET_TCP_BIND => add_rules_net(ctx, ruleset, resource)?,
+            crate::landlock::Resource::NET_TCP_CONNECT => add_rules_net(ctx, ruleset, resource)?,
         }
     }
 
@@ -41,21 +50,21 @@ fn load_imp(ruleset: &ll::Ruleset, nnp: bool) -> Result<()> {
     Ok(())
 }
 
-fn handle_access_fs(mut ctx: Ruleset, abi: ABI) -> Result<Ruleset> {
+fn handle_access_fs(mut ctx: LandlockRuleset, abi: LandlockABI) -> Result<LandlockRuleset> {
     ctx = ctx
-        .set_compatibility(CompatLevel::HardRequirement)
-        .handle_access(AccessFs::from_all(ABI::V1))
-        .map_err(|e| translate_landlock_ruleset_error(ll::Resource::FS, e))?
-        .set_compatibility(CompatLevel::BestEffort)
-        .handle_access(AccessFs::from_all(abi))?;
+        .set_compatibility(LandlockCompatLevel::HardRequirement)
+        .handle_access(LandlockAccessFs::from_all(LandlockABI::V1))
+        .map_err(|e| translate_landlock_ruleset_error(crate::landlock::Resource::FS, e))?
+        .set_compatibility(LandlockCompatLevel::BestEffort)
+        .handle_access(LandlockAccessFs::from_all(abi))?;
     Ok(ctx)
 }
 
 fn handle_access_net(
-    mut ctx: Ruleset,
-    resource: &ll::Resource,
-    mode: &ll::CompatMode,
-) -> Result<Ruleset> {
+    mut ctx: LandlockRuleset,
+    resource: &crate::landlock::Resource,
+    mode: &crate::landlock::CompatMode,
+) -> Result<LandlockRuleset> {
     let compatibility = translate_compat_mode(*mode);
     let access = translate_net_resource(*resource);
     ctx = ctx
@@ -66,82 +75,94 @@ fn handle_access_net(
 }
 
 fn add_rules_fs(
-    mut ctx: RulesetCreated,
-    abi: ABI,
-    ruleset: &ll::Ruleset,
-) -> Result<RulesetCreated> {
-    let r = translate_fs_access(abi, ll::FsAccess::R);
-    let w = translate_fs_access(abi, ll::FsAccess::W);
-    let x = translate_fs_access(abi, ll::FsAccess::X);
+    mut ctx: LandlockRulesetCreated,
+    abi: LandlockABI,
+    ruleset: &crate::landlock::Ruleset,
+) -> Result<LandlockRulesetCreated> {
+    let r = translate_fs_access(abi, crate::landlock::FsAccess::R);
+    let w = translate_fs_access(abi, crate::landlock::FsAccess::W);
+    let x = translate_fs_access(abi, crate::landlock::FsAccess::X);
     for rule in ruleset.get_fs_rules() {
-        let mut access = BitFlags::empty();
-        for e in [ll::FsAccess::R, ll::FsAccess::W, ll::FsAccess::X] {
+        let mut access = LandlockBitFlags::empty();
+        for e in [
+            crate::landlock::FsAccess::R,
+            crate::landlock::FsAccess::W,
+            crate::landlock::FsAccess::X,
+        ] {
             match rule.mode & e {
-                ll::FsAccess::R => access |= r,
-                ll::FsAccess::W => access |= w,
-                ll::FsAccess::X => access |= x,
+                crate::landlock::FsAccess::R => access |= r,
+                crate::landlock::FsAccess::W => access |= w,
+                crate::landlock::FsAccess::X => access |= x,
                 _ => {}
             }
         }
         let path = std::fs::canonicalize(rule.path.clone())
             .map_err(|_| Error::LandlockPathMustBeAbsolute(rule.path.clone()))?;
-        ctx = ctx.add_rules(path_beneath_rules([path], access))?;
+        ctx = ctx.add_rules(landlock_path_beneath_rules([path], access))?;
     }
     Ok(ctx)
 }
 
 fn add_rules_net(
-    mut ctx: RulesetCreated,
-    ruleset: &ll::Ruleset,
-    resource: &ll::Resource,
-) -> Result<RulesetCreated> {
+    mut ctx: LandlockRulesetCreated,
+    ruleset: &crate::landlock::Ruleset,
+    resource: &crate::landlock::Resource,
+) -> Result<LandlockRulesetCreated> {
     if let Some(rules) = ruleset.net_rules.get(resource) {
         for e in rules {
-            let rule = NetPort::new(e.port, translate_net_access(e.access));
+            let rule = LandlockNetPort::new(e.port, translate_net_access(e.access));
             ctx = ctx.add_rule(rule)?;
         }
     }
     Ok(ctx)
 }
 
-fn translate_compat_mode(mode: ll::CompatMode) -> CompatLevel {
+fn translate_compat_mode(mode: crate::landlock::CompatMode) -> LandlockCompatLevel {
     match mode {
-        ll::CompatMode::Enforce => CompatLevel::HardRequirement,
-        ll::CompatMode::Relax => CompatLevel::BestEffort,
+        crate::landlock::CompatMode::Enforce => LandlockCompatLevel::HardRequirement,
+        crate::landlock::CompatMode::Relax => LandlockCompatLevel::BestEffort,
     }
 }
 
-fn translate_net_resource(resource: ll::Resource) -> AccessNet {
+fn translate_net_resource(resource: crate::landlock::Resource) -> LandlockAccessNet {
     match resource {
-        ll::Resource::NET_TCP_BIND => AccessNet::BindTcp,
-        ll::Resource::NET_TCP_CONNECT => AccessNet::ConnectTcp,
+        crate::landlock::Resource::NET_TCP_BIND => LandlockAccessNet::BindTcp,
+        crate::landlock::Resource::NET_TCP_CONNECT => LandlockAccessNet::ConnectTcp,
         _ => unreachable!("runc::landlock::translate_net_resource"),
     }
 }
 
-fn translate_fs_access(abi: ABI, access: ll::FsAccess) -> BitFlags<AccessFs> {
+fn translate_fs_access(
+    abi: LandlockABI,
+    access: crate::landlock::FsAccess,
+) -> LandlockBitFlags<LandlockAccessFs> {
     match access {
-        ll::FsAccess::R => AccessFs::from_read(abi) & !AccessFs::Execute,
-        ll::FsAccess::W => AccessFs::from_write(abi),
-        ll::FsAccess::X => AccessFs::Execute.into(),
+        crate::landlock::FsAccess::R => {
+            LandlockAccessFs::from_read(abi) & !LandlockAccessFs::Execute
+        }
+        crate::landlock::FsAccess::W => LandlockAccessFs::from_write(abi),
+        crate::landlock::FsAccess::X => LandlockAccessFs::Execute.into(),
         _ => unreachable!("runc::landlock::translate_fs_access"),
     }
 }
 
-fn translate_net_access(access: ll::NetAccess) -> BitFlags<AccessNet> {
+fn translate_net_access(access: crate::landlock::NetAccess) -> LandlockBitFlags<LandlockAccessNet> {
     match access {
-        ll::NetAccess::TCP_BIND => AccessNet::BindTcp.into(),
-        ll::NetAccess::TCP_CONNECT => AccessNet::ConnectTcp.into(),
+        crate::landlock::NetAccess::TCP_BIND => LandlockAccessNet::BindTcp.into(),
+        crate::landlock::NetAccess::TCP_CONNECT => LandlockAccessNet::ConnectTcp.into(),
         _ => unreachable!("runc::landlock::translate_net_access"),
     }
 }
 
-fn translate_landlock_ruleset_error(resource: ll::Resource, e: landlock::RulesetError) -> Error {
+fn translate_landlock_ruleset_error(
+    resource: crate::landlock::Resource,
+    e: LandlockRulesetError,
+) -> Error {
     // [landlock#VERSIONS]: https://man7.org/linux/man-pages/man7/landlock.7.html#VERSIONS
     let (f, m) = match resource {
-        ll::Resource::FS => ("Filesystem restrictions", "5.13"),
-        ll::Resource::NET_TCP_BIND => ("Network TCP restrictions", "6.7"),
-        ll::Resource::NET_TCP_CONNECT => ("Network TCP restrictions", "6.7"),
+        crate::landlock::Resource::FS => ("Filesystem restrictions", "5.13"),
+        crate::landlock::Resource::NET_TCP_BIND => ("Network TCP restrictions", "6.7"),
+        crate::landlock::Resource::NET_TCP_CONNECT => ("Network TCP restrictions", "6.7"),
     };
     Error::LandlockFeatureUnsupported(f.to_string(), m.to_string(), e.to_string())
 }

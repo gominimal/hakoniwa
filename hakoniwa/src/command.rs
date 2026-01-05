@@ -7,7 +7,7 @@ use std::io::{PipeReader, PipeWriter, pipe};
 use std::path::{Path, PathBuf};
 use tempfile::TempDir;
 
-use crate::{Child, Container, ExitStatus, Namespace, Output, Stdio, error::*, runc};
+use crate::{Child, Container, ExitStatus, Namespace, Output, Stdio, error::*};
 
 /// Process builder, providing fine-grained control over how a new process
 /// should be spawned.
@@ -225,7 +225,7 @@ impl Command {
                 drop(stderr_reader);
                 drop(pipe_a.0);
                 drop(pipe_z.1);
-                runc::exec(
+                crate::runc::exec(
                     self,
                     &self.container,
                     stdin_reader,
@@ -365,27 +365,27 @@ impl Command {
                 .map_err(ProcessErrorKind::StdIoError)?;
 
             // The child process exited early due to some errors, so there is no need to do any setup.
-            if request[0] == runc::FIN {
+            if request[0] == crate::runc::FIN {
                 return Ok(1);
             }
 
             // Setup completed.
-            if request[0] == runc::SETUP_SUCCESS {
+            if request[0] == crate::runc::SETUP_SUCCESS {
                 return Ok(0);
             };
 
             // Setup [ug]idmap.
-            if request[0] & runc::SETUP_UGIDMAP == runc::SETUP_UGIDMAP {
+            if request[0] & crate::runc::SETUP_UGIDMAP == crate::runc::SETUP_UGIDMAP {
                 self.mainp_setup_ugidmap(child)?;
             };
 
             // Setup network.
-            if request[0] & runc::SETUP_NETWORK == runc::SETUP_NETWORK {
+            if request[0] & crate::runc::SETUP_NETWORK == crate::runc::SETUP_NETWORK {
                 self.mainp_setup_network(child)?;
             };
 
             // Setup cgroups.
-            if request[0] & runc::SETUP_CGROUPS == runc::SETUP_CGROUPS {
+            if request[0] & crate::runc::SETUP_CGROUPS == crate::runc::SETUP_CGROUPS {
                 #[cfg(feature = "cgroups")]
                 self.mainp_setup_cgroups(reader)?;
             };

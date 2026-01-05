@@ -1,4 +1,4 @@
-use close_fds::*;
+use close_fds::close_open_fds;
 use std::io::{PipeReader, PipeWriter};
 use std::os::fd::AsRawFd;
 

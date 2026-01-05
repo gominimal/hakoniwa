@@ -1,7 +1,9 @@
-use libseccomp::*;
+use libseccomp::{
+    ScmpAction, ScmpArch, ScmpArgCompare, ScmpCompareOp, ScmpFilterContext, ScmpSyscall,
+};
 
 use super::{error::*, sys};
-use crate::{Container, Runctl, seccomp::*};
+use crate::{Container, Runctl};
 
 pub(crate) fn load(container: &Container) -> Result<()> {
     let nnp = !container.runctl.contains(&Runctl::AllowNewPrivs);
@@ -14,7 +16,7 @@ pub(crate) fn load(container: &Container) -> Result<()> {
     }
 }
 
-fn load_imp(filter: &Filter, nnp: bool) -> Result<()> {
+fn load_imp(filter: &crate::seccomp::Filter, nnp: bool) -> Result<()> {
     // Create a new filter context.
     let default_scmp_action = translate_action(filter.default_action);
     let mut ctx = ScmpFilterContext::new(default_scmp_action)?;
@@ -58,61 +60,61 @@ fn load_imp(filter: &Filter, nnp: bool) -> Result<()> {
     Ok(ctx.load()?)
 }
 
-fn translate_action(action: Action) -> ScmpAction {
+fn translate_action(action: crate::seccomp::Action) -> ScmpAction {
     match action {
-        Action::Allow => ScmpAction::Allow,
-        Action::Errno(v) => ScmpAction::Errno(v),
-        Action::KillProcess => ScmpAction::KillProcess,
-        Action::KillThread => ScmpAction::KillThread,
-        Action::Log => ScmpAction::Log,
-        Action::Notify => ScmpAction::Notify,
-        Action::Trace(v) => ScmpAction::Trace(v),
-        Action::Trap => ScmpAction::Trap,
+        crate::seccomp::Action::Allow => ScmpAction::Allow,
+        crate::seccomp::Action::Errno(v) => ScmpAction::Errno(v),
+        crate::seccomp::Action::KillProcess => ScmpAction::KillProcess,
+        crate::seccomp::Action::KillThread => ScmpAction::KillThread,
+        crate::seccomp::Action::Log => ScmpAction::Log,
+        crate::seccomp::Action::Notify => ScmpAction::Notify,
+        crate::seccomp::Action::Trace(v) => ScmpAction::Trace(v),
+        crate::seccomp::Action::Trap => ScmpAction::Trap,
     }
 }
 
-fn translate_arch(arch: Arch) -> ScmpArch {
+fn translate_arch(arch: crate::seccomp::Arch) -> ScmpArch {
     match arch {
-        Arch::Native => ScmpArch::Native,
-        Arch::X86 => ScmpArch::X86,
-        Arch::X8664 => ScmpArch::X8664,
-        Arch::X32 => ScmpArch::X32,
-        Arch::Arm => ScmpArch::Arm,
-        Arch::Aarch64 => ScmpArch::Aarch64,
-        Arch::Loongarch64 => ScmpArch::Loongarch64,
-        Arch::M68k => ScmpArch::M68k,
-        Arch::Mips => ScmpArch::Mips,
-        Arch::Mips64 => ScmpArch::Mips64,
-        Arch::Mips64n32 => ScmpArch::Mips64N32,
-        Arch::Mipsel => ScmpArch::Mipsel,
-        Arch::Mipsel64 => ScmpArch::Mipsel64,
-        Arch::Mipsel64n32 => ScmpArch::Mipsel64N32,
-        Arch::Ppc => ScmpArch::Ppc,
-        Arch::Ppc64 => ScmpArch::Ppc64,
-        Arch::Ppc64le => ScmpArch::Ppc64Le,
-        Arch::S390 => ScmpArch::S390,
-        Arch::S390x => ScmpArch::S390X,
-        Arch::Parisc => ScmpArch::Parisc,
-        Arch::Parisc64 => ScmpArch::Parisc64,
-        Arch::Riscv64 => ScmpArch::Riscv64,
-        Arch::Sheb => ScmpArch::Sheb,
-        Arch::Sh => ScmpArch::Sh,
+        crate::seccomp::Arch::Native => ScmpArch::Native,
+        crate::seccomp::Arch::X86 => ScmpArch::X86,
+        crate::seccomp::Arch::X8664 => ScmpArch::X8664,
+        crate::seccomp::Arch::X32 => ScmpArch::X32,
+        crate::seccomp::Arch::Arm => ScmpArch::Arm,
+        crate::seccomp::Arch::Aarch64 => ScmpArch::Aarch64,
+        crate::seccomp::Arch::Loongarch64 => ScmpArch::Loongarch64,
+        crate::seccomp::Arch::M68k => ScmpArch::M68k,
+        crate::seccomp::Arch::Mips => ScmpArch::Mips,
+        crate::seccomp::Arch::Mips64 => ScmpArch::Mips64,
+        crate::seccomp::Arch::Mips64n32 => ScmpArch::Mips64N32,
+        crate::seccomp::Arch::Mipsel => ScmpArch::Mipsel,
+        crate::seccomp::Arch::Mipsel64 => ScmpArch::Mipsel64,
+        crate::seccomp::Arch::Mipsel64n32 => ScmpArch::Mipsel64N32,
+        crate::seccomp::Arch::Ppc => ScmpArch::Ppc,
+        crate::seccomp::Arch::Ppc64 => ScmpArch::Ppc64,
+        crate::seccomp::Arch::Ppc64le => ScmpArch::Ppc64Le,
+        crate::seccomp::Arch::S390 => ScmpArch::S390,
+        crate::seccomp::Arch::S390x => ScmpArch::S390X,
+        crate::seccomp::Arch::Parisc => ScmpArch::Parisc,
+        crate::seccomp::Arch::Parisc64 => ScmpArch::Parisc64,
+        crate::seccomp::Arch::Riscv64 => ScmpArch::Riscv64,
+        crate::seccomp::Arch::Sheb => ScmpArch::Sheb,
+        crate::seccomp::Arch::Sh => ScmpArch::Sh,
     }
 }
 
-fn translate_argcmps(argcmps: &[ArgCmp]) -> Vec<ScmpArgCompare> {
+fn translate_argcmps(argcmps: &[crate::seccomp::ArgCmp]) -> Vec<ScmpArgCompare> {
     argcmps
         .iter()
         .map(|cmp| {
             let mut datum = cmp.datum_a;
             let op = match cmp.op {
-                ArgCmpOp::Ne => ScmpCompareOp::NotEqual,
-                ArgCmpOp::Lt => ScmpCompareOp::Less,
-                ArgCmpOp::Le => ScmpCompareOp::LessOrEqual,
-                ArgCmpOp::Eq => ScmpCompareOp::Equal,
-                ArgCmpOp::Gt => ScmpCompareOp::Greater,
-                ArgCmpOp::Ge => ScmpCompareOp::GreaterEqual,
-                ArgCmpOp::MaskedEq => {
+                crate::seccomp::ArgCmpOp::Ne => ScmpCompareOp::NotEqual,
+                crate::seccomp::ArgCmpOp::Lt => ScmpCompareOp::Less,
+                crate::seccomp::ArgCmpOp::Le => ScmpCompareOp::LessOrEqual,
+                crate::seccomp::ArgCmpOp::Eq => ScmpCompareOp::Equal,
+                crate::seccomp::ArgCmpOp::Gt => ScmpCompareOp::Greater,
+                crate::seccomp::ArgCmpOp::Ge => ScmpCompareOp::GreaterEqual,
+                crate::seccomp::ArgCmpOp::MaskedEq => {
                     datum = cmp.datum_b;
                     ScmpCompareOp::MaskedEqual(cmp.datum_a)
                 }

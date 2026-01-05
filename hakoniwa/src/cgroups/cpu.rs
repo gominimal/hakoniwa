@@ -1,5 +1,5 @@
 /// Represents the cgroup subsystems cpu.
-#[derive(Clone, Debug)]
+#[derive(Clone, Default, Debug)]
 pub struct Cpu {
     shares: Option<u64>,
     period: Option<u64>,

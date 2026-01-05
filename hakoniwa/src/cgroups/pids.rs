@@ -1,5 +1,5 @@
 /// Represents the cgroup subsystem pids.
-#[derive(Clone, Debug)]
+#[derive(Clone, Default, Debug)]
 pub struct Pids {
     limit: Option<i64>,
 }

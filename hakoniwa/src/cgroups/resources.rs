@@ -1,7 +1,7 @@
 use super::{Cpu, Memory, Pids};
 
 /// Control groups resources builder.
-#[derive(Clone, Debug)]
+#[derive(Clone, Default, Debug)]
 pub struct Resources {
     cpu: Option<Cpu>,
     memory: Option<Memory>,

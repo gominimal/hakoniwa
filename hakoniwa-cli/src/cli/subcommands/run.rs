@@ -7,7 +7,7 @@ use std::str::{self, FromStr};
 
 use crate::cli::{argparse, pathsearch};
 use crate::{config, seccomp};
-use hakoniwa::{Command, Container, Namespace, Pasta, Rlimit, Runctl, landlock::*};
+use hakoniwa::{Command, Container, Namespace, Pasta, Rlimit, Runctl, cgroups, landlock};
 
 const SHELL: &str = "/bin/sh";
 
@@ -120,6 +120,34 @@ pub(crate) struct RunCommand {
     /// Limit the amount of wall time that the COMMAND can consume, in seconds
     #[clap(long, value_name = "LIMIT")]
     limit_walltime: Option<u64>,
+
+    /// CPU shares
+    #[clap(long, value_name = "VALUE")]
+    cgroup_cpu_shares: Option<u64>,
+
+    /// CPU CFS period to be used for hardcapping
+    #[clap(long, value_name = "VALUE")]
+    cgroup_cpu_period: Option<u64>,
+
+    /// CPU CFS hardcap limit
+    #[clap(long, value_name = "VALUE")]
+    cgroup_cpu_quota: Option<u64>,
+
+    /// Memory limit
+    #[clap(long, value_name = "VALUE")]
+    cgroup_memory_limit: Option<i64>,
+
+    /// Memory soft limit
+    #[clap(long, value_name = "VALUE")]
+    cgroup_memory_reservation: Option<i64>,
+
+    /// Memory+Swap limit
+    #[clap(long, value_name = "VALUE")]
+    cgroup_memory_swap: Option<i64>,
+
+    /// PID limit
+    #[clap(long, value_name = "VALUE")]
+    cgroup_pids_limit: Option<i64>,
 
     /// Restrict ambient rights (e.g. global filesystem access) for the process
     #[clap(long, value_name = "RESOURCE, ...")]
@@ -288,19 +316,19 @@ impl RunCommand {
 
         // CFG: landlock
         if let Some(landlock) = cfg.landlock {
-            let mut ruleset = Ruleset::default();
+            let mut ruleset = landlock::Ruleset::default();
             for resource in landlock.resources {
                 let res = Self::str_to_landlock_resource(&resource.rtype)
                     .map_err(|e| anyhow!("--config: landlock: {e}"))?;
                 if resource.unrestrict {
                     ruleset.unrestrict(res);
                 } else {
-                    ruleset.restrict(res, CompatMode::Enforce);
+                    ruleset.restrict(res, landlock::CompatMode::Enforce);
                 }
             }
 
             for rule in landlock.fs {
-                let access = FsAccess::from_str(&rule.access)
+                let access = landlock::FsAccess::from_str(&rule.access)
                     .map_err(|e| anyhow!("--config: landlock: {e}"))?;
                 ruleset.add_fs_rule(&rule.path, access);
             }
@@ -514,56 +542,110 @@ impl RunCommand {
         self.limit_nofile
             .map(|val| container.setrlimit(Rlimit::Nofile, val, val));
 
+        // ARG: --cgroup
+        if argparse::contains_arg_cgroup() {
+            let mut cgroups_resources = cgroups::Resources::default();
+            let mut cpu = cgroups::Cpu::default();
+            let mut memory = cgroups::Memory::default();
+            let mut pids = cgroups::Pids::default();
+
+            // ARG: --cgroup-cpu-shares
+            if let Some(value) = &self.cgroup_cpu_shares {
+                cpu.shares(*value);
+            }
+
+            // ARG: --cgroup-cpu-period
+            if let Some(value) = &self.cgroup_cpu_period {
+                cpu.period(*value);
+            }
+
+            // ARG: --cgroup-cpu-quota
+            if let Some(value) = &self.cgroup_cpu_quota {
+                cpu.quota(*value);
+            }
+
+            // ARG: --cgroup-memory-limit
+            if let Some(value) = &self.cgroup_memory_limit {
+                memory.limit(*value);
+            }
+
+            // ARG: --cgroup-memory-reservation
+            if let Some(value) = &self.cgroup_memory_reservation {
+                memory.reservation(*value);
+            }
+
+            // ARG: --cgroup-memory-swap
+            if let Some(value) = &self.cgroup_memory_swap {
+                memory.swap(*value);
+            }
+
+            // ARG: --cgroup-pids-limit
+            if let Some(value) = &self.cgroup_pids_limit {
+                pids.limit(*value);
+            }
+
+            cgroups_resources.cpu(cpu);
+            cgroups_resources.memory(memory);
+            cgroups_resources.pids(pids);
+            container.cgroups_resources(cgroups_resources);
+        }
+
         // ARG: --landlock
         if argparse::contains_arg_landlock() {
-            let mut ruleset = Ruleset::default();
+            let mut ruleset = landlock::Ruleset::default();
 
             // ARG: --landlock-restrict
             if let Some(resources) = &self.landlock_restrict {
                 for resource in resources.split(&[',']) {
                     let resource = Self::str_to_landlock_resource(resource)
                         .map_err(|e| anyhow!("--landlock-restrict: {e}"))?;
-                    ruleset.restrict(resource, CompatMode::Enforce);
+                    ruleset.restrict(resource, landlock::CompatMode::Enforce);
                 }
             }
 
             // ARG: --landlock-fs-ro
             if let Some((_, paths)) = &self.landlock_fs_ro {
-                ruleset.restrict(Resource::FS, CompatMode::Enforce);
+                ruleset.restrict(landlock::Resource::FS, landlock::CompatMode::Enforce);
                 for path in paths {
-                    ruleset.add_fs_rule(path, FsAccess::R);
+                    ruleset.add_fs_rule(path, landlock::FsAccess::R);
                 }
             }
 
             // ARG: --landlock-fs-rw
             if let Some((_, paths)) = &self.landlock_fs_rw {
-                ruleset.restrict(Resource::FS, CompatMode::Enforce);
+                ruleset.restrict(landlock::Resource::FS, landlock::CompatMode::Enforce);
                 for path in paths {
-                    ruleset.add_fs_rule(path, FsAccess::R | FsAccess::W);
+                    ruleset.add_fs_rule(path, landlock::FsAccess::R | landlock::FsAccess::W);
                 }
             }
 
             // ARG: --landlock-fs-rx
             if let Some((_, paths)) = &self.landlock_fs_rx {
-                ruleset.restrict(Resource::FS, CompatMode::Enforce);
+                ruleset.restrict(landlock::Resource::FS, landlock::CompatMode::Enforce);
                 for path in paths {
-                    ruleset.add_fs_rule(path, FsAccess::R | FsAccess::X);
+                    ruleset.add_fs_rule(path, landlock::FsAccess::R | landlock::FsAccess::X);
                 }
             }
 
             // ARG: --landlock-tcp-bind
             if let Some((_, ports)) = &self.landlock_tcp_bind {
-                ruleset.restrict(Resource::NET_TCP_BIND, CompatMode::Enforce);
+                ruleset.restrict(
+                    landlock::Resource::NET_TCP_BIND,
+                    landlock::CompatMode::Enforce,
+                );
                 for port in ports {
-                    ruleset.add_net_rule(*port, NetAccess::TCP_BIND);
+                    ruleset.add_net_rule(*port, landlock::NetAccess::TCP_BIND);
                 }
             }
 
             // ARG: --landlock-tcp-connect
             if let Some((_, ports)) = &self.landlock_tcp_connect {
-                ruleset.restrict(Resource::NET_TCP_CONNECT, CompatMode::Enforce);
+                ruleset.restrict(
+                    landlock::Resource::NET_TCP_CONNECT,
+                    landlock::CompatMode::Enforce,
+                );
                 for port in ports {
-                    ruleset.add_net_rule(*port, NetAccess::TCP_CONNECT);
+                    ruleset.add_net_rule(*port, landlock::NetAccess::TCP_CONNECT);
                 }
             }
 
@@ -696,11 +778,11 @@ impl RunCommand {
         })
     }
 
-    fn str_to_landlock_resource(s: &str) -> Result<Resource> {
+    fn str_to_landlock_resource(s: &str) -> Result<landlock::Resource> {
         Ok(match s {
-            "fs" => Resource::FS,
-            "tcp.bind" => Resource::NET_TCP_BIND,
-            "tcp.connect" => Resource::NET_TCP_CONNECT,
+            "fs" => landlock::Resource::FS,
+            "tcp.bind" => landlock::Resource::NET_TCP_BIND,
+            "tcp.connect" => landlock::Resource::NET_TCP_CONNECT,
             _ => {
                 let msg = format!("unknown resource type {s:?}");
                 Err(anyhow!(msg))?
@@ -708,10 +790,10 @@ impl RunCommand {
         })
     }
 
-    fn str_to_landlock_net_access(s: &str) -> Result<NetAccess> {
+    fn str_to_landlock_net_access(s: &str) -> Result<landlock::NetAccess> {
         Ok(match s {
-            "tcp.bind" => NetAccess::TCP_BIND,
-            "tcp.connect" => NetAccess::TCP_CONNECT,
+            "tcp.bind" => landlock::NetAccess::TCP_BIND,
+            "tcp.connect" => landlock::NetAccess::TCP_CONNECT,
             _ => {
                 let msg = format!("unknown net access {s:?}");
                 Err(anyhow!(msg))?

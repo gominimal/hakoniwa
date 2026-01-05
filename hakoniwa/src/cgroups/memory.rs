@@ -1,5 +1,5 @@
 /// Represents the cgroup subsystem memory.
-#[derive(Clone, Debug)]
+#[derive(Clone, Default, Debug)]
 pub struct Memory {
     limit: Option<i64>,
     reservation: Option<i64>,

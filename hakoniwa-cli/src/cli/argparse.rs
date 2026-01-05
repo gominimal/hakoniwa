@@ -13,6 +13,17 @@ pub(crate) fn contains_arg(arg: &str) -> bool {
     false
 }
 
+pub(crate) fn contains_arg_cgroup() -> bool {
+    for a in env::args() {
+        match a.as_str() {
+            "--" => return false,
+            a if a.contains("--cgroup") => return true,
+            _ => {}
+        }
+    }
+    false
+}
+
 pub(crate) fn contains_arg_landlock() -> bool {
     for a in env::args() {
         match a.as_str() {

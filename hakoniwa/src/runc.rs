@@ -16,6 +16,7 @@ use std::collections::HashMap;
 use std::ffi::CString;
 use std::io::prelude::*;
 use std::io::{PipeReader, PipeWriter};
+use std::os::fd::AsRawFd;
 use std::process;
 use std::time::Instant;
 
@@ -93,15 +94,15 @@ fn exec_imp(
 ) -> Result<ExitStatus> {
     // Redirect standard I/O stream.
     if let Some(stdin) = stdin.take() {
-        sys::dup2_stdin(&stdin)?;
+        sys::dup2_stdin(stdin.as_raw_fd())?;
         drop(stdin);
     }
     if let Some(stdout) = stdout.take() {
-        sys::dup2_stdout(&stdout)?;
+        sys::dup2_stdout(stdout.as_raw_fd())?;
         drop(stdout);
     }
     if let Some(stderr) = stderr.take() {
-        sys::dup2_stderr(&stderr)?;
+        sys::dup2_stderr(stderr.as_raw_fd())?;
         drop(stderr);
     }
 

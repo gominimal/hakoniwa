@@ -1,4 +1,4 @@
-use super::{Cpu, Memory, Pids};
+use super::{Cpu, Memory, Pids, error::*};
 
 /// Control groups resources builder.
 #[derive(Clone, Default, Debug)]
@@ -25,5 +25,20 @@ impl Resources {
     pub fn pids(&mut self, pids: Pids) -> &mut Self {
         self.pids = Some(pids);
         self
+    }
+
+    /// Build.
+    pub(crate) fn build(&self) -> Result<oci_spec::runtime::LinuxResources> {
+        let mut builder = oci_spec::runtime::LinuxResourcesBuilder::default();
+        if let Some(res) = &self.cpu {
+            builder = builder.cpu(res.build()?);
+        }
+        if let Some(res) = &self.memory {
+            builder = builder.memory(res.build()?);
+        }
+        if let Some(res) = &self.pids {
+            builder = builder.pids(res.build()?);
+        }
+        Ok(builder.build()?)
     }
 }

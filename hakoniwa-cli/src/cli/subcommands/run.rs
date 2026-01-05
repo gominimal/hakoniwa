@@ -131,7 +131,7 @@ pub(crate) struct RunCommand {
 
     /// CPU CFS hardcap limit
     #[clap(long, value_name = "VALUE")]
-    cgroup_cpu_quota: Option<u64>,
+    cgroup_cpu_quota: Option<i64>,
 
     /// Memory limit
     #[clap(long, value_name = "VALUE")]

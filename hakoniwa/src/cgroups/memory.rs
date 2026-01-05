@@ -1,3 +1,5 @@
+use super::error::*;
+
 /// Represents the cgroup subsystem memory.
 #[derive(Clone, Default, Debug)]
 pub struct Memory {
@@ -23,5 +25,20 @@ impl Memory {
     pub fn swap(&mut self, val: i64) -> &mut Self {
         self.swap = Some(val);
         self
+    }
+
+    /// Build.
+    pub(crate) fn build(&self) -> Result<oci_spec::runtime::LinuxMemory> {
+        let mut builder = oci_spec::runtime::LinuxMemoryBuilder::default();
+        if let Some(val) = self.limit {
+            builder = builder.limit(val);
+        }
+        if let Some(val) = self.reservation {
+            builder = builder.reservation(val);
+        }
+        if let Some(val) = self.swap {
+            builder = builder.swap(val);
+        }
+        Ok(builder.build()?)
     }
 }

@@ -422,12 +422,9 @@ impl Command {
             .map_err(ProcessErrorKind::StdIoError)?;
 
         let id = i32::from_be_bytes(r);
-        let cgroup = crate::cgroups::Manager::new("hakoniwa-");
+        let cgroup = crate::cgroups::Manager::new(&format!("p{id}"));
         cgroup
-            .create(resources)
-            .map_err(ProcessErrorKind::SetupCgroupsFailed)?;
-        cgroup
-            .add_task(id)
+            .apply(id, resources)
             .map_err(ProcessErrorKind::SetupCgroupsFailed)?;
         self.inner_cgroup = Some(cgroup);
 

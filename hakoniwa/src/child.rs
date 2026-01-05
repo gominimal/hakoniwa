@@ -128,6 +128,8 @@ pub struct Child {
     status_reader: Option<PipeReader>,
     status_reader_noleading: bool,
     tmpdir: Option<TempDir>,
+    #[cfg(feature = "cgroups")]
+    cgroup: Option<crate::cgroups::Manager>,
     pub stdin: Option<PipeWriter>,
     pub stdout: Option<PipeReader>,
     pub stderr: Option<PipeReader>,
@@ -145,6 +147,7 @@ impl Child {
         status_reader_noleading: bool,
         status: Option<ExitStatus>,
         tmpdir: Option<TempDir>,
+        #[cfg(feature = "cgroups")] cgroup: Option<crate::cgroups::Manager>,
     ) -> Self {
         Self {
             pid,
@@ -155,6 +158,8 @@ impl Child {
             status_reader_noleading,
             status,
             tmpdir,
+            #[cfg(feature = "cgroups")]
+            cgroup,
         }
     }
 
@@ -234,6 +239,9 @@ impl Child {
 
         self.logging();
         drop(self.tmpdir.take());
+
+        #[cfg(feature = "cgroups")]
+        drop(self.cgroup.take());
 
         let s = self.status.clone();
         s.ok_or(Error::ProcessError(ProcessErrorKind::ChildExitStatusGone))

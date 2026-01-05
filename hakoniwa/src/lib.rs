@@ -48,6 +48,9 @@ pub use runctl::Runctl;
 pub use stdio::Stdio;
 pub use unshare::{MountOptions, Namespace, Network, Pasta};
 
+#[cfg(feature = "cgroups")]
+pub mod cgroups;
+
 #[cfg(feature = "landlock")]
 pub mod landlock;
 

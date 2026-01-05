@@ -55,6 +55,8 @@ pub struct Container {
     pub(crate) hostname: Option<String>,
     pub(crate) network: Option<Network>,
     pub(crate) rlimits: HashMap<Rlimit, (u64, u64)>,
+    #[cfg(feature = "cgroups")]
+    pub(crate) cgroups_resources: Option<crate::cgroups::Resources>,
     #[cfg(feature = "landlock")]
     pub(crate) landlock_ruleset: Option<crate::landlock::Ruleset>,
     #[cfg(feature = "seccomp")]
@@ -118,6 +120,8 @@ impl Container {
             hostname: None,
             network: None,
             rlimits: HashMap::new(),
+            #[cfg(feature = "cgroups")]
+            cgroups_resources: None,
             #[cfg(feature = "landlock")]
             landlock_ruleset: None,
             #[cfg(feature = "seccomp")]
@@ -386,6 +390,13 @@ impl Container {
         self
     }
 
+    /// Set cgroups resources.
+    #[cfg(feature = "cgroups")]
+    pub fn cgroups_resources(&mut self, resources: crate::cgroups::Resources) -> &mut Self {
+        self.cgroups_resources = Some(resources);
+        self
+    }
+
     /// Set landlock ruleset.
     #[cfg(feature = "landlock")]
     pub fn landlock_ruleset(&mut self, ruleset: crate::landlock::Ruleset) -> &mut Self {
@@ -463,6 +474,16 @@ impl Container {
             return false;
         }
         self.network.is_some()
+    }
+
+    /// Returns true if the container needs the main process to setup
+    /// the cgroups.
+    pub(crate) fn needs_mainp_setup_cgroups(&self) -> bool {
+        #[cfg(feature = "cgroups")]
+        return self.cgroups_resources.is_some();
+
+        #[cfg(not(feature = "cgroups"))]
+        return false;
     }
 
     /// Returns true if the container needs the child process to stop

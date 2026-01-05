@@ -26,16 +26,28 @@ pub(crate) fn notify_mainp_setup_network(
     Ok(())
 }
 
-pub(crate) fn notify_mainp_setup_success(
+pub(crate) fn notify_mainp_setup_cgroups(
+    child: i32,
+    container: &Container,
     mut reader: &PipeReader,
     mut writer: &PipeWriter,
 ) -> Result<()> {
     let mut operations = 0;
-    operations |= crate::runc::SETUP_SUCCESS;
+    if container.needs_mainp_setup_cgroups() {
+        operations |= crate::runc::SETUP_CGROUPS;
+    }
 
-    let mut response = [0];
-    writer.write_all(&[operations])?;
-    reader.read_exact(&mut response)?;
+    if operations != 0 {
+        let mut response = [0];
+        writer.write_all(&[operations])?;
+        writer.write_all(&child.to_be_bytes())?;
+        reader.read_exact(&mut response)?;
+    }
 
+    Ok(())
+}
+
+pub(crate) fn notify_mainp_setup_success(mut writer: &PipeWriter) -> Result<()> {
+    writer.write_all(&[crate::runc::SETUP_SUCCESS])?;
     Ok(())
 }

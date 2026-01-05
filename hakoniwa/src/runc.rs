@@ -36,6 +36,7 @@ const PTRACE_EVENT_EXIT: i32 = PtraceEvent::PTRACE_EVENT_EXIT as i32;
 pub(crate) const FIN: u8 = 0;
 pub(crate) const SETUP_UGIDMAP: u8 = 1;
 pub(crate) const SETUP_NETWORK: u8 = 1 << 1;
+pub(crate) const SETUP_CGROUPS: u8 = 1 << 2;
 pub(crate) const SETUP_SUCCESS: u8 = 1 << 7;
 
 pub(crate) fn exec(
@@ -123,7 +124,8 @@ fn exec_imp(
     // directly. This is useful when creating a new PID namespace.
     match sys::fork()? {
         ForkResult::Parent { child, .. } => {
-            notify::notify_mainp_setup_success(reader, writer)?;
+            notify::notify_mainp_setup_cgroups(child.as_raw(), container, reader, writer)?;
+            notify::notify_mainp_setup_success(writer)?;
             reap(child, command, container)
         }
         ForkResult::Child => match spawn(command, container) {

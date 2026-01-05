@@ -32,6 +32,7 @@ regex = "1.12.2"
 
 [features]
 default = []
+cgroups = []
 landlock = ["dep:landlock"]
 seccomp = ["dep:libseccomp"]
 

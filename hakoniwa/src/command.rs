@@ -27,6 +27,8 @@ pub struct Command {
     stdout: Option<Stdio>,
     stderr: Option<Stdio>,
     pub(crate) wait_timeout: Option<u64>,
+    #[cfg(feature = "cgroups")]
+    pub(crate) inner_cgroup: Option<crate::cgroups::Manager>,
 }
 
 impl Command {
@@ -43,6 +45,8 @@ impl Command {
             stdout: None,
             stderr: None,
             wait_timeout: None,
+            #[cfg(feature = "cgroups")]
+            inner_cgroup: None,
         }
     }
 
@@ -210,6 +214,8 @@ impl Command {
                     noleading,
                     status,
                     tmpdir,
+                    #[cfg(feature = "cgroups")]
+                    self.inner_cgroup.take(),
                 ))
             }
             Ok(ForkResult::Child) => {
@@ -346,7 +352,7 @@ impl Command {
 
     /// Setup [ug]idmap, network, cgroups, etc.
     fn mainp_setup(
-        &self,
+        &mut self,
         reader: &mut PipeReader,
         writer: &mut PipeWriter,
         child: Pid,
@@ -363,6 +369,11 @@ impl Command {
                 return Ok(1);
             }
 
+            // Setup completed.
+            if request[0] == runc::SETUP_SUCCESS {
+                return Ok(0);
+            };
+
             // Setup [ug]idmap.
             if request[0] & runc::SETUP_UGIDMAP == runc::SETUP_UGIDMAP {
                 self.mainp_setup_ugidmap(child)?;
@@ -373,15 +384,16 @@ impl Command {
                 self.mainp_setup_network(child)?;
             };
 
+            // Setup cgroups.
+            if request[0] & runc::SETUP_CGROUPS == runc::SETUP_CGROUPS {
+                #[cfg(feature = "cgroups")]
+                self.mainp_setup_cgroups(reader)?;
+            };
+
             // Send a response back to the child process.
             writer
                 .write_all(&[0])
                 .map_err(ProcessErrorKind::StdIoError)?;
-
-            // No more setups.
-            if request[0] & runc::SETUP_SUCCESS == runc::SETUP_SUCCESS {
-                return Ok(0);
-            };
         }
     }
 
@@ -393,6 +405,33 @@ impl Command {
     /// Setup network.
     fn mainp_setup_network(&self, child: Pid) -> Result<()> {
         crate::unshare::mainp_setup_network(&self.container, child)
+    }
+
+    /// Setup cgroups.
+    #[cfg(feature = "cgroups")]
+    fn mainp_setup_cgroups(&mut self, reader: &mut PipeReader) -> Result<()> {
+        let resources = &self
+            .container
+            .cgroups_resources
+            .clone()
+            .expect("Container#cgroups_resources is some");
+
+        let mut r = [0, 0, 0, 0];
+        reader
+            .read_exact(&mut r)
+            .map_err(ProcessErrorKind::StdIoError)?;
+
+        let id = i32::from_be_bytes(r);
+        let cgroup = crate::cgroups::Manager::new("hakoniwa-");
+        cgroup
+            .create(resources)
+            .map_err(ProcessErrorKind::SetupCgroupsFailed)?;
+        cgroup
+            .add_task(id)
+            .map_err(ProcessErrorKind::SetupCgroupsFailed)?;
+        self.inner_cgroup = Some(cgroup);
+
+        Ok(())
     }
 
     /// Executes a command as a child process, waiting for it to finish and

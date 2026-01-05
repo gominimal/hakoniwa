@@ -1,3 +1,5 @@
+//! Configure cgroups profile.
+
 mod cpu;
 mod error;
 mod manager;

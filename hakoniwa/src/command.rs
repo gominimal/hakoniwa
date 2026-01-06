@@ -387,7 +387,7 @@ impl Command {
             // Setup cgroups.
             if request[0] & crate::runc::SETUP_CGROUPS == crate::runc::SETUP_CGROUPS {
                 #[cfg(feature = "cgroups")]
-                self.mainp_setup_cgroups(reader)?;
+                self.mainp_setup_cgroups(child)?;
             };
 
             // Send a response back to the child process.
@@ -409,25 +409,20 @@ impl Command {
 
     /// Setup cgroups.
     #[cfg(feature = "cgroups")]
-    fn mainp_setup_cgroups(&mut self, reader: &mut PipeReader) -> Result<()> {
+    fn mainp_setup_cgroups(&mut self, child: Pid) -> Result<()> {
         let resources = &self
             .container
             .cgroups_resources
             .clone()
             .expect("Container#cgroups_resources is some");
 
-        let mut r = [0, 0, 0, 0];
-        reader
-            .read_exact(&mut r)
-            .map_err(ProcessErrorKind::StdIoError)?;
-
-        let id = i32::from_be_bytes(r);
-        let cgroup = crate::cgroups::Manager::new(&format!("p{id}"));
-        cgroup
-            .apply(id, resources)
+        let cgroup = crate::cgroups::Manager::new(&format!("{child}"))
             .map_err(ProcessErrorKind::SetupCgroupsFailed)?;
-        self.inner_cgroup = Some(cgroup);
+        cgroup
+            .apply(child, resources)
+            .map_err(ProcessErrorKind::SetupCgroupsFailed)?;
 
+        self.inner_cgroup = Some(cgroup);
         Ok(())
     }
 

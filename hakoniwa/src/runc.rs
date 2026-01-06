@@ -115,8 +115,9 @@ fn exec_imp(
     // Unshare namespaces, setup [ug]idmap.
     unshare::newuser(container)?;
 
-    // Notify the main process to setup network.
-    notify::notify_mainp_setup_network(container, reader, writer)?;
+    // Notify the main process to setup [ug]idmap, network, cgroups, etc.
+    notify::notify_mainp_setup(container, reader, writer)?;
+    notify::notify_mainp_setup_success(writer)?;
 
     // Mount rootfs.
     unshare::newns(container)?;
@@ -124,11 +125,7 @@ fn exec_imp(
     // Fork the specified program as a child process rather than running it
     // directly. This is useful when creating a new PID namespace.
     match sys::fork()? {
-        ForkResult::Parent { child, .. } => {
-            notify::notify_mainp_setup_cgroups(child.as_raw(), container, reader, writer)?;
-            notify::notify_mainp_setup_success(writer)?;
-            reap(child, command, container)
-        }
+        ForkResult::Parent { child, .. } => reap(child, command, container),
         ForkResult::Child => match spawn(command, container) {
             Ok(_) => unreachable!("runc::exec_imp"),
             Err(err) => process_exit!(err),

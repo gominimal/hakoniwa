@@ -4,7 +4,7 @@ use std::io::{PipeReader, PipeWriter};
 use super::error::*;
 use crate::Container;
 
-pub(crate) fn notify_mainp_setup_network(
+pub(crate) fn notify_mainp_setup(
     container: &Container,
     mut reader: &PipeReader,
     mut writer: &PipeWriter,
@@ -16,23 +16,6 @@ pub(crate) fn notify_mainp_setup_network(
     if container.needs_mainp_setup_network() {
         operations |= crate::runc::SETUP_NETWORK;
     }
-
-    if operations != 0 {
-        let mut response = [0];
-        writer.write_all(&[operations])?;
-        reader.read_exact(&mut response)?;
-    }
-
-    Ok(())
-}
-
-pub(crate) fn notify_mainp_setup_cgroups(
-    child: i32,
-    container: &Container,
-    mut reader: &PipeReader,
-    mut writer: &PipeWriter,
-) -> Result<()> {
-    let mut operations = 0;
     if container.needs_mainp_setup_cgroups() {
         operations |= crate::runc::SETUP_CGROUPS;
     }
@@ -40,7 +23,6 @@ pub(crate) fn notify_mainp_setup_cgroups(
     if operations != 0 {
         let mut response = [0];
         writer.write_all(&[operations])?;
-        writer.write_all(&child.to_be_bytes())?;
         reader.read_exact(&mut response)?;
     }
 

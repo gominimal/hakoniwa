@@ -845,6 +845,35 @@ mod container_test {
         assert_contains!(String::from_utf8_lossy(&output.stderr), "File too large");
     }
 
+    #[cfg(feature = "cgroups")]
+    #[test]
+    fn test_cgroups_pids() {
+        use hakoniwa::cgroups::*;
+
+        let mut cpu = Cpu::default();
+        let mut pids = Pids::default();
+        let mut resources = Resources::default();
+        cpu.shares(1024).quota(1000000).period(500000);
+        pids.limit(1024);
+        resources.cpu(cpu).pids(pids);
+
+        let output = Container::empty()
+            .cgroups_resources(resources)
+            .command("/bin/python3")
+            .arg(
+                &customized_scripts_path()
+                    .join("fork-bomb.py")
+                    .to_string_lossy(),
+            )
+            .output()
+            .unwrap();
+        assert!(!output.status.success());
+        assert_contains!(
+            String::from_utf8_lossy(&output.stderr),
+            "Resource temporarily unavailable"
+        );
+    }
+
     #[cfg(feature = "landlock")]
     #[test]
     fn test_landlock_fs_readable() {

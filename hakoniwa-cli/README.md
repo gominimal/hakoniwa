@@ -93,6 +93,7 @@ hakoniwa run -c myprofile.toml -- another-COMMAND
 - [Network](./docs/usage/network.md)
 - [User](./docs/usage/userns.md)
 - [Process Resource Limit](./docs/usage/limit.md)
+- [Control Groups](./docs/usage/cgroups.md)
 - [Landlock](./docs/usage/landlock.md)
 - [Seccomp Profile](./docs/usage/seccomp.md)
 - [Misc](./docs/usage/misc.md)

@@ -1,6 +1,6 @@
 # Hakoniwa
 
-Process isolation for Linux using namespaces, resource limits, landlock and seccomp.
+Process isolation for Linux using namespaces, resource limits, cgroups, landlock and seccomp.
 It works by creating a new, completely empty, mount namespace where the root is
 on a tmpdir, and will be automatically cleaned up when the last process exits.
 
@@ -10,6 +10,7 @@ It uses the following techniques:
 - **MNT namespace + pivot_root:** Create a new root file system for the process.
 - **NETWORK namespace + pasta**: Create a new user-mode networking stack for the process.
 - **setrlimit:** Limit the amount of resources that can be used by the process.
+- **cgroups + systemd:** Limit process resources using cgroup v2.
 - **landlock:** Restrict ambient rights (e.g. global filesystem access) for the process.
 - **seccomp:** Restrict the system calls that the process can make.
 
@@ -95,6 +96,7 @@ fn main() {
         // .devfsmount("/dev")     // Mount `devfs` on `/dev`, it contains a minimal set of device files, like `/dev/null`
         // .tmpfsmount("/tmp")     // Mount `tmpfs` on `/tmp`
         // .setrlimit(..)          // Set resource limits
+        // .cgroups_resources(..)  // Set cgroups resources
         // .landlock_ruleset(..)   // Set landlock ruleset
         // .seccomp_filter(..)     // Set seccomp filter
         .command("/bin/sh")     // Create Command

@@ -358,7 +358,7 @@ impl Container {
     ///
     /// # Caveats
     ///
-    /// It uses the /etc/passwd and /etc/group files in the container
+    /// It uses the `/etc/passwd` and `/etc/group` files in the container
     /// to check and determine the user and group.
     pub fn user(
         &mut self,

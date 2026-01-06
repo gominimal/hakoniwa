@@ -133,15 +133,15 @@ pub(crate) struct RunCommand {
     #[clap(long, value_name = "VALUE")]
     cgroup_cpu_quota: Option<i64>,
 
-    /// Memory limit
+    /// Memory limit, in bytes
     #[clap(long, value_name = "VALUE")]
     cgroup_memory_limit: Option<i64>,
 
-    /// Memory soft limit
+    /// Memory soft limit, in bytes
     #[clap(long, value_name = "VALUE")]
     cgroup_memory_reservation: Option<i64>,
 
-    /// Memory+Swap limit
+    /// Memory+Swap limit, in bytes
     #[clap(long, value_name = "VALUE")]
     cgroup_memory_swap: Option<i64>,
 
@@ -555,33 +555,33 @@ impl RunCommand {
             }
 
             // ARG: --cgroup-cpu-period
-            if let Some(value) = &self.cgroup_cpu_period {
-                cpu.period(*value);
+            if let Some(value) = self.cgroup_cpu_period {
+                cpu.period(value);
             }
 
             // ARG: --cgroup-cpu-quota
-            if let Some(value) = &self.cgroup_cpu_quota {
-                cpu.quota(*value);
+            if let Some(value) = self.cgroup_cpu_quota {
+                cpu.quota(value);
             }
 
             // ARG: --cgroup-memory-limit
-            if let Some(value) = &self.cgroup_memory_limit {
-                memory.limit(*value);
+            if let Some(value) = self.cgroup_memory_limit {
+                memory.limit(value);
             }
 
             // ARG: --cgroup-memory-reservation
-            if let Some(value) = &self.cgroup_memory_reservation {
-                memory.reservation(*value);
+            if let Some(value) = self.cgroup_memory_reservation {
+                memory.reservation(value);
             }
 
             // ARG: --cgroup-memory-swap
-            if let Some(value) = &self.cgroup_memory_swap {
-                memory.swap(*value);
+            if let Some(value) = self.cgroup_memory_swap {
+                memory.swap(value);
             }
 
             // ARG: --cgroup-pids-limit
-            if let Some(value) = &self.cgroup_pids_limit {
-                pids.limit(*value);
+            if let Some(value) = self.cgroup_pids_limit {
+                pids.limit(value);
             }
 
             cgroups_resources.cpu(cpu);

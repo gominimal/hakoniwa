@@ -850,10 +850,10 @@ mod container_test {
     fn test_cgroups_pids() {
         use hakoniwa::cgroups::*;
 
+        let mut resources = Resources::default();
         let mut cpu = Cpu::default();
         let mut pids = Pids::default();
-        let mut resources = Resources::default();
-        cpu.shares(1024).quota(1000000).period(500000);
+        cpu.quota(50_000).period(50_000);
         pids.limit(1024);
         resources.cpu(cpu).pids(pids);
 

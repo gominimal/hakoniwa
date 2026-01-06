@@ -1,0 +1,42 @@
+#[cfg(feature = "cgroups")]
+fn main() -> Result<(), hakoniwa::Error> {
+    use hakoniwa::{cgroups::*, *};
+
+    let mut resources = Resources::default();
+    let mut cpu = Cpu::default();
+    let mut memory = Memory::default();
+    let mut pids = Pids::default();
+
+    let tim = 50_000;
+    let mem = 512 * 1024 * 1024;
+
+    cpu.quota(2 * tim).period(tim as u64); // 2 CPUs
+    memory.limit(mem).reservation(mem).swap(mem); // 512 MB
+    pids.limit(1024);
+    resources.cpu(cpu).memory(memory).pids(pids);
+
+    let mut container = Container::new();
+    container
+        .rootfs("/")?
+        .devfsmount("/dev")
+        .tmpfsmount("/tmp")
+        .cgroups_resources(resources);
+
+    let status = container
+        .command("/bin/dd")
+        .args(["if=/dev/random", "of=/tmp/output.txt", "count=1", "bs=4"])
+        .status()?;
+    assert!(status.success());
+
+    Ok(())
+}
+
+#[cfg(not(feature = "cgroups"))]
+fn main() -> Result<(), hakoniwa::Error> {
+    Ok(())
+}
+
+#[test]
+fn test_main() {
+    main().unwrap();
+}

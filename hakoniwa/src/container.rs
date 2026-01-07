@@ -44,7 +44,6 @@ use crate::{
 pub struct Container {
     pub(crate) namespaces: HashSet<Namespace>,
     pub(crate) rootdir: Option<PathBuf>,
-    pub(crate) rootdir_abspath: PathBuf,
     mounts: HashMap<String, Mount>,
     fs_operations: HashMap<String, FsOperation>,
     pub(crate) uidmaps: Option<Vec<IdMap>>,
@@ -109,7 +108,6 @@ impl Container {
         Self {
             namespaces: HashSet::new(),
             rootdir: None,
-            rootdir_abspath: PathBuf::new(),
             mounts: HashMap::new(),
             fs_operations: HashMap::new(),
             uidmaps: None,

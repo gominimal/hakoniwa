@@ -119,7 +119,7 @@ fn exec_imp(
     notify::notify_mainp_setup(container, reader, writer)?;
 
     // Mount rootfs.
-    unshare::newns(container)?;
+    unshare::newns(command, container)?;
 
     // Fork the specified program as a child process rather than running it
     // directly. This is useful when creating a new PID namespace.
@@ -127,7 +127,7 @@ fn exec_imp(
         ForkResult::Parent { child, .. } => {
             notify::notify_mainp_setup_success(writer)?;
             reap(child, command, container)
-        },
+        }
         ForkResult::Child => match spawn(command, container) {
             Ok(_) => unreachable!("runc::exec_imp"),
             Err(err) => process_exit!(err),

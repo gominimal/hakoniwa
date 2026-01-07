@@ -28,7 +28,8 @@ pub struct Command {
     stderr: Option<Stdio>,
     pub(crate) wait_timeout: Option<u64>,
     #[cfg(feature = "cgroups")]
-    pub(crate) inner_cgroup: Option<crate::cgroups::Manager>,
+    pub(crate) running_cgroup: Option<crate::cgroups::Manager>,
+    pub(crate) running_rootdir_abspath: PathBuf,
 }
 
 impl Command {
@@ -46,7 +47,8 @@ impl Command {
             stderr: None,
             wait_timeout: None,
             #[cfg(feature = "cgroups")]
-            inner_cgroup: None,
+            running_cgroup: None,
+            running_rootdir_abspath: PathBuf::new(),
         }
     }
 
@@ -153,11 +155,11 @@ impl Command {
     fn spawn_imp(&mut self, default: Stdio) -> Result<Child> {
         let tmpdir = if let Some(dir) = &self.container.rootdir {
             let dir = fs::canonicalize(dir).map_err(ProcessErrorKind::StdIoError)?;
-            self.container.rootdir_abspath = dir;
+            self.running_rootdir_abspath = dir;
             None
         } else {
             let dir = TempDir::with_prefix("hakoniwa-").map_err(ProcessErrorKind::StdIoError)?;
-            self.container.rootdir_abspath = dir.path().to_path_buf();
+            self.running_rootdir_abspath = dir.path().to_path_buf();
             Some(dir)
         };
 
@@ -215,7 +217,7 @@ impl Command {
                     status,
                     tmpdir,
                     #[cfg(feature = "cgroups")]
-                    self.inner_cgroup.take(),
+                    self.running_cgroup.take(),
                 ))
             }
             Ok(ForkResult::Child) => {
@@ -261,7 +263,7 @@ impl Command {
         if self.container.namespaces.contains(&Namespace::Mount) {
             log::debug!(
                 "Mount:    root: {}",
-                self.container.rootdir_abspath.to_string_lossy(),
+                self.running_rootdir_abspath.to_string_lossy(),
             );
             for mount in self.container.get_mounts() {
                 log::debug!("Mount: {mount}");
@@ -422,7 +424,7 @@ impl Command {
             .apply(child, resources)
             .map_err(ProcessErrorKind::SetupCgroupsFailed)?;
 
-        self.inner_cgroup = Some(cgroup);
+        self.running_cgroup = Some(cgroup);
         Ok(())
     }
 

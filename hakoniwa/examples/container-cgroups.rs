@@ -12,7 +12,7 @@ fn main() -> Result<(), hakoniwa::Error> {
 
     cpu.quota(2 * tim).period(tim as u64); // 2 CPUs
     memory.limit(mem).reservation(mem).swap(mem); // 512 MB
-    pids.limit(1024);
+    pids.limit(4);
     resources.cpu(cpu).memory(memory).pids(pids);
 
     let mut container = Container::new();

@@ -854,7 +854,7 @@ mod container_test {
         let mut cpu = Cpu::default();
         let mut pids = Pids::default();
         cpu.quota(50_000).period(50_000);
-        pids.limit(1024);
+        pids.limit(4);
         resources.cpu(cpu).pids(pids);
 
         let output = Container::empty()

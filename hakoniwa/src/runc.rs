@@ -107,7 +107,7 @@ fn exec_imp(
     }
 
     // Close extra FDs.
-    close_fds::close_extra_fds(reader, writer)?;
+    close_fds::close_extra_fds_exclude(reader, writer)?;
 
     // Die with parent.
     sys::set_pdeathsig(Signal::SIGKILL)?;
@@ -136,6 +136,10 @@ fn exec_imp(
 }
 
 fn reap(child: Pid, command: &Command, container: &Container) -> Result<ExitStatus> {
+    // Close unused FDs.
+    sys::close_stdin()?;
+    sys::close_stdout()?;
+
     // Set PTRACE_O_TRACEEXIT option for the internal process.
     if container.needs_childp_traceexit() {
         let ws = sys::waitpid(child)?;

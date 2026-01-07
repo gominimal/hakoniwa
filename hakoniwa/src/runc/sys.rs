@@ -139,6 +139,20 @@ pub(crate) fn setalarm(secs: u64) -> Result<()> {
     Ok(())
 }
 
+pub(crate) fn close_stdin() -> Result<()> {
+    unistd::close(libc::STDIN_FILENO).map_err(|err| {
+        let err = format!("close_stdin() => {err}");
+        Error::SysError(err)
+    })
+}
+
+pub(crate) fn close_stdout() -> Result<()> {
+    unistd::close(libc::STDOUT_FILENO).map_err(|err| {
+        let err = format!("close_stdout() => {err}");
+        Error::SysError(err)
+    })
+}
+
 pub(crate) fn dup2_stdin(oldfd: i32) -> Result<RawFd> {
     unistd::dup2(oldfd, libc::STDIN_FILENO).map_err(|err| {
         let err = format!("dup2_stdin(..) => {err}");

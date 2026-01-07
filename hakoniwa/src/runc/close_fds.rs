@@ -4,7 +4,7 @@ use std::os::fd::AsRawFd;
 
 use super::error::*;
 
-pub(crate) fn close_extra_fds(reader: &PipeReader, writer: &PipeWriter) -> Result<()> {
+pub(crate) fn close_extra_fds_exclude(reader: &PipeReader, writer: &PipeWriter) -> Result<()> {
     let mut keep_fds = [reader.as_raw_fd(), writer.as_raw_fd()];
     keep_fds.sort_unstable();
 

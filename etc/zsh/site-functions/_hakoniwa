@@ -75,6 +75,13 @@ _arguments "${_arguments_options[@]}" : \
 '--limit-fsize=[Limit the maximum size in bytes of files that the COMMAND may create]:LIMIT:_default' \
 '--limit-nofile=[Limit the maximum file descriptor number that can be opened by the COMMAND]:LIMIT:_default' \
 '--limit-walltime=[Limit the amount of wall time that the COMMAND can consume, in seconds]:LIMIT:_default' \
+'--cgroup-cpu-shares=[CPU shares]:VALUE:_default' \
+'--cgroup-cpu-period=[CPU CFS period to be used for hardcapping]:VALUE:_default' \
+'--cgroup-cpu-quota=[CPU CFS hardcap limit]:VALUE:_default' \
+'--cgroup-memory-limit=[Memory limit, in bytes]:VALUE:_default' \
+'--cgroup-memory-reservation=[Memory soft limit, in bytes]:VALUE:_default' \
+'--cgroup-memory-swap=[Memory+Swap limit, in bytes]:VALUE:_default' \
+'--cgroup-pids-limit=[PID limit]:VALUE:_default' \
 '--landlock-restrict=[Restrict ambient rights (e.g. global filesystem access) for the process]:RESOURCE, ...:_default' \
 '--landlock-fs-ro=[Allow to read files beneath PATH (implies --landlock-restrict=fs)]:PATH, ...:_default' \
 '--landlock-fs-rw=[Allow to read-write files beneath PATH (implies --landlock-restrict=fs)]:PATH, ...:_default' \

@@ -56,6 +56,13 @@ complete -c hakoniwa -n "__fish_hakoniwa_using_subcommand run" -l limit-cpu -d '
 complete -c hakoniwa -n "__fish_hakoniwa_using_subcommand run" -l limit-fsize -d 'Limit the maximum size in bytes of files that the COMMAND may create' -r
 complete -c hakoniwa -n "__fish_hakoniwa_using_subcommand run" -l limit-nofile -d 'Limit the maximum file descriptor number that can be opened by the COMMAND' -r
 complete -c hakoniwa -n "__fish_hakoniwa_using_subcommand run" -l limit-walltime -d 'Limit the amount of wall time that the COMMAND can consume, in seconds' -r
+complete -c hakoniwa -n "__fish_hakoniwa_using_subcommand run" -l cgroup-cpu-shares -d 'CPU shares' -r
+complete -c hakoniwa -n "__fish_hakoniwa_using_subcommand run" -l cgroup-cpu-period -d 'CPU CFS period to be used for hardcapping' -r
+complete -c hakoniwa -n "__fish_hakoniwa_using_subcommand run" -l cgroup-cpu-quota -d 'CPU CFS hardcap limit' -r
+complete -c hakoniwa -n "__fish_hakoniwa_using_subcommand run" -l cgroup-memory-limit -d 'Memory limit, in bytes' -r
+complete -c hakoniwa -n "__fish_hakoniwa_using_subcommand run" -l cgroup-memory-reservation -d 'Memory soft limit, in bytes' -r
+complete -c hakoniwa -n "__fish_hakoniwa_using_subcommand run" -l cgroup-memory-swap -d 'Memory+Swap limit, in bytes' -r
+complete -c hakoniwa -n "__fish_hakoniwa_using_subcommand run" -l cgroup-pids-limit -d 'PID limit' -r
 complete -c hakoniwa -n "__fish_hakoniwa_using_subcommand run" -l landlock-restrict -d 'Restrict ambient rights (e.g. global filesystem access) for the process' -r
 complete -c hakoniwa -n "__fish_hakoniwa_using_subcommand run" -l landlock-fs-ro -d 'Allow to read files beneath PATH (implies --landlock-restrict=fs)' -r
 complete -c hakoniwa -n "__fish_hakoniwa_using_subcommand run" -l landlock-fs-rw -d 'Allow to read-write files beneath PATH (implies --landlock-restrict=fs)' -r

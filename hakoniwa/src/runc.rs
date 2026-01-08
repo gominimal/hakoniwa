@@ -17,7 +17,6 @@ use std::ffi::CString;
 use std::io::prelude::*;
 use std::io::{PipeReader, PipeWriter};
 use std::os::fd::AsRawFd;
-use std::process;
 use std::time::Instant;
 
 use crate::runc::error::*;
@@ -25,10 +24,14 @@ use crate::runc::sys::{ForkResult, Pid, PtraceEvent, Signal, UsageWho, WaitStatu
 use crate::{Command, Container, ExitStatus, ProcPidSmapsRollup, ProcPidStatus, Runctl, Rusage};
 
 macro_rules! process_exit {
+    ($status:expr) => {{ unsafe { libc::_exit($status) } }};
+}
+
+macro_rules! process_exit_err {
     ($err:ident) => {{
         let err = format!("hakoniwa: {}\n", $err);
         _ = sys::write_stderr(err.as_bytes());
-        process::exit(ExitStatus::FAILURE)
+        unsafe { libc::_exit(ExitStatus::FAILURE) }
     }};
 }
 
@@ -65,22 +68,22 @@ pub(crate) fn exec(
     let config = bincode::config::standard();
     let encoded: Vec<u8> = match bincode::serde::encode_to_vec(&status, config) {
         Ok(val) => val,
-        Err(err) => process_exit!(err),
+        Err(err) => process_exit_err!(err),
     };
 
     // Assume that the encoded message will not exceed the capacity of the pipe
     // buffer (usually 65,536 bytes), so the writer will not be blocked.
     match writer.write_all(&[FIN]) {
         Ok(_) => {}
-        Err(err) => process_exit!(err),
+        Err(err) => process_exit_err!(err),
     };
     match writer.write_all(&encoded) {
         Ok(_) => {}
-        Err(err) => process_exit!(err),
+        Err(err) => process_exit_err!(err),
     };
     drop(writer);
 
-    process::exit(status.code);
+    process_exit!(status.code)
 }
 
 fn exec_imp(
@@ -130,7 +133,7 @@ fn exec_imp(
         }
         ForkResult::Child => match spawn(command, container) {
             Ok(_) => unreachable!("runc::exec_imp"),
-            Err(err) => process_exit!(err),
+            Err(err) => process_exit_err!(err),
         },
     }
 }

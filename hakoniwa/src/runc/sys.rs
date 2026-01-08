@@ -153,6 +153,13 @@ pub(crate) fn close_stdout() -> Result<()> {
     })
 }
 
+pub(crate) fn close_stderr() -> Result<()> {
+    unistd::close(libc::STDERR_FILENO).map_err(|err| {
+        let err = format!("close_stderr() => {err}");
+        Error::SysError(err)
+    })
+}
+
 pub(crate) fn dup2_stdin(oldfd: i32) -> Result<RawFd> {
     unistd::dup2(oldfd, libc::STDIN_FILENO).map_err(|err| {
         let err = format!("dup2_stdin(..) => {err}");

@@ -28,10 +28,12 @@ macro_rules! process_exit {
 }
 
 macro_rules! process_exit_err {
-    ($err:ident) => {{
+    () => {{ process_exit!(ExitStatus::FAILURE) }};
+
+    ($err:expr) => {{
         let err = format!("hakoniwa: {}\n", $err);
         _ = sys::write_stderr(err.as_bytes());
-        unsafe { libc::_exit(ExitStatus::FAILURE) }
+        process_exit!(ExitStatus::FAILURE)
     }};
 }
 
@@ -67,18 +69,18 @@ pub(crate) fn exec(
 
     let encoded: Vec<u8> = match postcard::to_allocvec(&status) {
         Ok(val) => val,
-        Err(err) => process_exit_err!(err),
+        Err(_) => process_exit_err!(),
     };
 
     // Assume that the encoded message will not exceed the capacity of the pipe
     // buffer (usually 65,536 bytes), so the writer will not be blocked.
     match writer.write_all(&[FIN]) {
         Ok(_) => {}
-        Err(err) => process_exit_err!(err),
+        Err(_) => process_exit_err!(),
     };
     match writer.write_all(&encoded) {
         Ok(_) => {}
-        Err(err) => process_exit_err!(err),
+        Err(_) => process_exit_err!(),
     };
     drop(writer);
 
@@ -141,6 +143,7 @@ fn reap(child: Pid, command: &Command, container: &Container) -> Result<ExitStat
     // Close unused FDs.
     sys::close_stdin()?;
     sys::close_stdout()?;
+    sys::close_stderr()?;
 
     // Set PTRACE_O_TRACEEXIT option for the internal process.
     if container.needs_childp_traceexit() {

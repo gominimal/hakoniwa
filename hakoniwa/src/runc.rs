@@ -65,8 +65,7 @@ pub(crate) fn exec(
         Err(err) => ExitStatus::new_failure(&err.to_string()),
     };
 
-    let config = bincode::config::standard();
-    let encoded: Vec<u8> = match bincode::serde::encode_to_vec(&status, config) {
+    let encoded: Vec<u8> = match postcard::to_allocvec(&status) {
         Ok(val) => val,
         Err(err) => process_exit_err!(err),
     };

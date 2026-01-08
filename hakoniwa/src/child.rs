@@ -264,9 +264,8 @@ impl Child {
                 .map_err(ProcessErrorKind::StdIoError)?;
             drop(reader);
 
-            let config = bincode::config::standard();
-            let (status, _) = bincode::serde::decode_from_slice(&encoded[..], config)
-                .map_err(ProcessErrorKind::BincodeDecodeError)?;
+            let status =
+                postcard::from_bytes(&encoded[..]).map_err(ProcessErrorKind::PostcardError)?;
             self.status = Some(status);
         }
         Ok(())

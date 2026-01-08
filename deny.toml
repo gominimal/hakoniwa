@@ -10,7 +10,11 @@ feature-depth = 1
 # More documentation for the advisories section can be found here:
 # https://embarkstudios.github.io/cargo-deny/checks/advisories/cfg.html
 [advisories]
-ignore = []
+ignore = [
+  # Unmaintained: postcard -> heapless -> atomic-polyfill
+  # See https://github.com/jamesmunns/postcard/issues/223
+  "RUSTSEC-2023-0089",
+]
 
 # This section is considered when running `cargo deny check bans`.
 # More documentation about the 'bans' section can be found here:

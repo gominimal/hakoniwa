@@ -14,7 +14,7 @@ pub enum Error {
 #[derive(thiserror::Error, Debug)]
 pub enum ProcessErrorKind {
     #[error(transparent)]
-    BincodeDecodeError(#[from] bincode::error::DecodeError),
+    PostcardError(#[from] postcard::Error),
     #[error(transparent)]
     NixError(#[from] nix::Error),
     #[error(transparent)]

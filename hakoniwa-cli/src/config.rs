@@ -26,7 +26,7 @@ pub(crate) fn load(path: &str) -> Result<CfgConfig> {
     log::debug!("CONFIG: {path}");
     let path = fs::canonicalize(path)?;
     let data = fs::read_to_string(&path)?;
-    let root = path.parent().unwrap_or(Path::new("/"));
+    let root = path.parent().expect("Path#parent is some");
     r.set_loader(minijinja::path_loader(root));
 
     // Parse CfgConfig
@@ -41,7 +41,7 @@ pub(crate) fn load(path: &str) -> Result<CfgConfig> {
         let path = fs::canonicalize(include)?;
         let data = fs::read_to_string(&path)?;
 
-        let __dir__ = path.parent().unwrap_or(Path::new("/"));
+        let __dir__ = path.parent().expect("Path#parent is some");
         let data = r.render_str(&data, minijinja::context! { __dir__ })?;
         cfgs.push(toml::from_str::<CfgInclude>(&data)?);
     }

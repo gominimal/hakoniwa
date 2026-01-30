@@ -17,7 +17,7 @@
 //!     .command("/bin/echo")       // Create Command
 //!     .arg("hello")               // Configure Command
 //!     .output()                   // Execute
-//!     .expect("failed to execute process witnin container");
+//!     .expect("failed to execute process within container");
 //!
 //! let hello = output.stdout;
 //!

@@ -101,7 +101,7 @@ fn main() {
         // .seccomp_filter(..)     // Set seccomp filter
         .command("/bin/sh")     // Create Command
         .status()               // Execute
-        .expect("failed to execute process witnin container");
+        .expect("failed to execute process within container");
 }
 ```
 

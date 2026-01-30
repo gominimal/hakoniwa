@@ -35,7 +35,7 @@ use crate::{
 /// let mut command = container.command("/bin/echo");
 /// let output = command.arg("hello")
 ///     .output()
-///     .expect("failed to execute process witnin container");
+///     .expect("failed to execute process within container");
 /// ```
 ///
 /// [bindmount_ro]: Container::bindmount_ro

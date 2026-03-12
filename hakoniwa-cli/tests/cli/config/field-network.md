@@ -12,7 +12,7 @@ $ hakoniwa run --config ./tests/fixtures/config/field-network.toml -- ip link
 ```
 
 ```console
-$ hakoniwa run --config ./tests/fixtures/config/field-network.toml -- aria2c https://example.com --async-dns-server=8.8.8.8 --dry-run
+$ hakoniwa run --config ./tests/fixtures/config/field-network.toml -- aria2c https://example.com --async-dns-server=8.8.8.8 --dry-run --check-certificate=false
 ...
 (OK):download completed.
 

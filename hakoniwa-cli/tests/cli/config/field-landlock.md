@@ -14,7 +14,7 @@ $ hakoniwa run --config ./tests/fixtures/config/field-landlock.toml -- /bin/pyth
 ## CfgLandlockResource#unrestrict `true`
 
 ```console
-$ hakoniwa run --config ./tests/fixtures/config/field-landlock.toml -- aria2c https://example.com --async-dns-server=8.8.8.8 --dry-run
+$ hakoniwa run --config ./tests/fixtures/config/field-landlock.toml -- aria2c https://example.com --async-dns-server=8.8.8.8 --dry-run --check-certificate=false
 ...
 (OK):download completed.
 

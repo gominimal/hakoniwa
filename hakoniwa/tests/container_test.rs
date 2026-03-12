@@ -1080,7 +1080,7 @@ mod container_test {
         let output = Container::empty()
             .landlock_ruleset(ruleset.clone())
             .command("/bin/aria2c")
-            .args(["https://example.com", "--dry-run"])
+            .args(["https://example.com", "--dry-run", "--check-certificate=false"])
             .output()
             .unwrap();
         assert!(!output.status.success());
@@ -1090,7 +1090,7 @@ mod container_test {
         let output = Container::empty()
             .landlock_ruleset(ruleset.clone())
             .command("/bin/aria2c")
-            .args(["https://example.com", "--dry-run"])
+            .args(["https://example.com", "--dry-run", "--check-certificate=false"])
             .output()
             .unwrap();
         assert!(output.status.success());

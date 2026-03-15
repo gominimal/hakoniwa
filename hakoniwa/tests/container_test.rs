@@ -272,6 +272,22 @@ mod container_test {
     }
 
     #[test]
+    fn test_bindmount_ro_host_path_not_truncated() {
+        let host_path = current_dir().join("README.md");
+        let output = Container::new()
+            .rootfs("/")
+            .unwrap()
+            .bindmount_ro(&current_dir().to_string_lossy(), "/blah")
+            .bindmount_ro("/etc/os-release", "/blah/README.md")
+            .command("/bin/cat")
+            .arg("/blah/README.md")
+            .output()
+            .unwrap();
+        assert!(output.status.success());
+        assert_contains!(&fs::read_to_string(host_path).unwrap(), "# Hakoniwa");
+    }
+
+    #[test]
     fn test_bindmount_ro_container_path_overwrite() {
         let dir1 = customized_rootfs_path().join("bin");
         let dir2 = customized_rootfs_path().join("etc");

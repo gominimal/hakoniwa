@@ -505,6 +505,23 @@ mod container_test {
     }
 
     #[test]
+    fn test_devfsmount_remount() {
+        let dir = tempfile::tempdir().unwrap();
+        for _ in 0..2 {
+            let output = Container::new()
+                .rootdir(&dir)
+                .rootfs("/")
+                .unwrap()
+                .devfsmount("/mydev")
+                .command("/bin/sh")
+                .args(["-c", "echo 'myword' > /mydev/null"])
+                .output()
+                .unwrap();
+            assert!(output.status.success());
+        }
+    }
+
+    #[test]
     fn test_tmpfsmount_mount_options() {
         let output = Container::new()
             .rootfs("/")

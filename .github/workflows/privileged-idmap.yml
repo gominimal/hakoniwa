@@ -2,7 +2,9 @@ name: Privileged id maps
 
 # Fork-only: the root-only tests for the privileged id-map change, which the
 # upstream workflow cannot run (it tests as an unprivileged user), and a control
-# that reverts the change's source and requires those tests to fail.
+# that reverts the change's source and requires those tests to fail. The
+# toolchain is the one gominimal/minimal pins (rust-toolchain.toml), which is
+# what builds this crate there.
 on:
   push:
     branches:
@@ -18,7 +20,7 @@ jobs:
       - run: |
           sudo apt-get update
           sudo apt install libseccomp-dev
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@1.99.1
         with:
           components: clippy,rustfmt
       - run: cargo clippy --all-features --all-targets -- -D warnings
@@ -37,7 +39,7 @@ jobs:
       - run: |
           sudo apt-get update
           sudo apt install libseccomp-dev uidmap
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@1.99.1
       - name: The whole suite, unprivileged
         run: cargo test --all-features --all-targets -p hakoniwa -- --nocapture
       - name: The privileged tests, as root
@@ -58,17 +60,23 @@ jobs:
       - run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
       - uses: actions/checkout@v7
         with:
-          fetch-depth: 3
-      # No uidmap package: without the change, a root map that is not onto
-      # root's own id goes to newuidmap, which the control must not find, as a
-      # minimal root filesystem would not carry it.
+          fetch-depth: 0
+      # Without the change, a root map that is not onto root's own id goes to
+      # newuidmap. The runner image ships it; a minimal root filesystem does
+      # not, so the control moves the helpers out of PATH.
       - run: |
           sudo apt-get update
           sudo apt install libseccomp-dev
+          for helper in newuidmap newgidmap; do
+            path=$(command -v "$helper") || continue
+            sudo mv "$path" "$path.hidden"
+          done
           ! command -v newuidmap
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@1.99.1
+      # The upstream revision gominimal/minimal pins: every commit on this branch
+      # sits on it, whatever CI commits are added.
       - name: Revert the change's source, keep its tests
-        run: git checkout HEAD~2 -- hakoniwa/src && git status --short
+        run: git checkout 0810ffa37620ef5c57de263c8eaa1f4d7633c14a -- hakoniwa/src && git status --short
       - name: The privileged tests must fail without the change
         working-directory: hakoniwa
         shell: bash

@@ -4,6 +4,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::io::prelude::*;
 use std::io::{PipeReader, PipeWriter, pipe};
+use std::os::fd::OwnedFd;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 use tempfile::TempDir;
@@ -32,6 +33,10 @@ pub struct Command {
     pub(crate) wait_timeout: Option<u64>,
     pub(crate) runtime_mount_oldproc: String,
     pub(crate) runtime_rootdir_abspath: PathBuf,
+    /// Detached idmapped mounts by container target, which the container
+    /// process moves into place. Held from before the fork until the
+    /// container process has finished its setup.
+    pub(crate) runtime_idmap_trees: HashMap<String, OwnedFd>,
     #[cfg(feature = "cgroups")]
     runtime_cgroup: Option<crate::cgroups::Manager>,
     #[cfg(feature = "rustslirp")]
@@ -55,6 +60,7 @@ impl Command {
             wait_timeout: None,
             runtime_mount_oldproc: String::new(),
             runtime_rootdir_abspath: PathBuf::new(),
+            runtime_idmap_trees: HashMap::new(),
             #[cfg(feature = "cgroups")]
             runtime_cgroup: None,
             #[cfg(feature = "rustslirp")]
@@ -80,6 +86,7 @@ impl Command {
             wait_timeout: None,
             runtime_mount_oldproc: String::new(),
             runtime_rootdir_abspath: PathBuf::new(),
+            runtime_idmap_trees: HashMap::new(),
             #[cfg(feature = "cgroups")]
             runtime_cgroup: None,
             #[cfg(feature = "rustslirp")]
@@ -206,6 +213,11 @@ impl Command {
 
         self.logging();
 
+        // Only the main process, root in the initial user namespace, can set
+        // an idmap, and only on a mount not attached yet; the container
+        // process moves these into place.
+        self.runtime_idmap_trees = crate::unshare::mainp_open_idmapped_trees(&self.container)?;
+
         let default_stdio = || {
             if default_inherit {
                 Stdio::inherit()
@@ -256,6 +268,10 @@ impl Command {
                         status = Some(ExitStatus::new_failure(&e.to_string()));
                     }
                 };
+
+                // The container process has moved its copies into place or
+                // exited, so these are no longer needed.
+                self.runtime_idmap_trees.clear();
 
                 drop(pipe_z.1);
                 Ok(Child::new(

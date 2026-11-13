@@ -2,7 +2,9 @@ use nix::sched::CloneFlags;
 use nix::unistd::{Gid, Uid};
 use std::collections::{HashMap, HashSet};
 use std::fs;
+use std::os::fd::OwnedFd;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use crate::{
     Command, FsOperation, IdMap, Mount, MountOptions, Namespace, Network, Rlimit, Runctl, error::*,
@@ -54,6 +56,8 @@ pub struct Container {
     /// child, once it has unshared its user namespace, reads its own ids as
     /// the overflow ids until a map is written.
     pub(crate) idmaps_writer: (u32, u32),
+    /// The user namespace whose maps idmapped bind mounts use.
+    pub(crate) idmap_userns: Option<Arc<OwnedFd>>,
     pub(crate) user: Option<String>,
     pub(crate) group: Option<String>,
     pub(crate) supplementary_groups: Vec<String>,
@@ -119,6 +123,7 @@ impl Container {
             uidmaps: None,
             gidmaps: None,
             idmaps_writer: (Uid::effective().as_raw(), Gid::effective().as_raw()),
+            idmap_userns: None,
             user: None,
             group: None,
             supplementary_groups: vec![],
@@ -173,14 +178,28 @@ impl Container {
     /// When use `/` as rootfs, it only mount following subdirectories: `/bin`,
     /// `/etc`, `/lib`, `/lib64`, `/lib32`, `/sbin`, `/usr`.
     pub fn rootfs<P: AsRef<Path>>(&mut self, host_path: P) -> Result<&mut Self> {
-        match self.rootfs_imp(host_path) {
+        match self.rootfs_imp(host_path, false) {
+            Ok(_) => Ok(self),
+            Err(err) => Err(Error::UnError(format!("io: #{err}"))),
+        }
+    }
+
+    /// As [`rootfs`](Self::rootfs), but binds each subdirectory with
+    /// [`bindmount_ro_idmapped`](Self::bindmount_ro_idmapped). Symlinks are
+    /// recreated as they are.
+    pub fn rootfs_idmapped<P: AsRef<Path>>(&mut self, host_path: P) -> Result<&mut Self> {
+        match self.rootfs_imp(host_path, true) {
             Ok(_) => Ok(self),
             Err(err) => Err(Error::UnError(format!("io: #{err}"))),
         }
     }
 
     /// Container#rootfs IMP.
-    fn rootfs_imp<P: AsRef<Path>>(&mut self, dir: P) -> std::result::Result<(), std::io::Error> {
+    fn rootfs_imp<P: AsRef<Path>>(
+        &mut self,
+        dir: P,
+        idmapped: bool,
+    ) -> std::result::Result<(), std::io::Error> {
         let dir = fs::canonicalize(&dir)?;
         let mut entries = vec![];
         if dir.as_os_str() == "/" {
@@ -213,7 +232,11 @@ impl Container {
                 self.symlink(&original, &container_abspath);
             } else {
                 let host_abspath = entry.to_string_lossy();
-                self.bindmount_ro(&host_abspath, &container_abspath);
+                if idmapped {
+                    self.bindmount_ro_idmapped(&host_abspath, &container_abspath);
+                } else {
+                    self.bindmount_ro(&host_abspath, &container_abspath);
+                }
             }
         }
         Ok(())
@@ -229,6 +252,32 @@ impl Container {
     /// Bind mount the `host_path` on `container_path` with read-write access in new MOUNT namespace.
     pub fn bindmount_rw(&mut self, host_path: &str, container_path: &str) -> &mut Self {
         let flags = MountOptions::BIND | MountOptions::REC | MountOptions::NOSUID;
+        self.mount(host_path, container_path, "", flags)
+    }
+
+    /// As [`bindmount_ro`](Self::bindmount_ro), through an idmapped mount
+    /// with the maps of the user namespace set by [`idmap`](Self::idmap).
+    ///
+    /// The main process must run as root. The filesystem must support
+    /// idmapped mounts (ext4, xfs, btrfs since Linux 5.12; tmpfs since 6.3),
+    /// and so must every mount below `host_path`.
+    pub fn bindmount_ro_idmapped(&mut self, host_path: &str, container_path: &str) -> &mut Self {
+        let flags = MountOptions::BIND
+            | MountOptions::REC
+            | MountOptions::NOSUID
+            | MountOptions::RDONLY
+            | MountOptions::IDMAP;
+        self.mount(host_path, container_path, "", flags)
+    }
+
+    /// As [`bindmount_rw`](Self::bindmount_rw), through an idmapped mount
+    /// with the maps of the user namespace set by [`idmap`](Self::idmap).
+    ///
+    /// The requirements of [`bindmount_ro_idmapped`](Self::bindmount_ro_idmapped)
+    /// apply.
+    pub fn bindmount_rw_idmapped(&mut self, host_path: &str, container_path: &str) -> &mut Self {
+        let flags =
+            MountOptions::BIND | MountOptions::REC | MountOptions::NOSUID | MountOptions::IDMAP;
         self.mount(host_path, container_path, "", flags)
     }
 
@@ -366,6 +415,17 @@ impl Container {
             })
             .collect::<Vec<IdMap>>();
         Some(idmaps)
+    }
+
+    /// Sets the user namespace whose maps the idmapped bind mounts use, as
+    /// [`idmap_userns`](crate::idmap_userns) creates it.
+    ///
+    /// Its maps read from disk to kernel ids: with `(0, K, 1)` a file owned by
+    /// 0 on disk appears owned by kernel id K, which the container's own maps
+    /// then show as the container id mapped onto K.
+    pub fn idmap(&mut self, userns: Arc<OwnedFd>) -> &mut Self {
+        self.idmap_userns = Some(userns);
+        self
     }
 
     /// Changes the user in the new USER namespace.

@@ -3,6 +3,7 @@ use super::sys::{self, FsFlags, MsFlags, PathBuf};
 use crate::{
     Command, Container, FsOperation, GroupFile, MountOptions, Namespace, PasswdFile, Runctl,
 };
+use std::os::fd::AsRawFd;
 
 macro_rules! if_namespace_then {
     ($namespace:expr, $container:ident, $fn:ident) => {
@@ -158,6 +159,21 @@ fn initialize_rootfs(command: &Command, container: &Container) -> Result<()> {
             PathBuf::from(&target_relpath).parent().map(sys::mkdir_p);
             sys::touch(target_relpath)?
         }
+
+        // An idmapped bind was cloned and given its idmap and flags by the
+        // main process; move it onto the target instead of binding it.
+        if mount.options.contains(MountOptions::IDMAP) {
+            let tree = command
+                .runtime_idmap_trees
+                .get(&mount.target)
+                .ok_or_else(|| {
+                    Error::SysError(format!("no idmapped mount for {}", mount.target))
+                })?;
+            let target_abspath = command.runtime_rootdir_abspath.join(target_relpath);
+            sys::move_mount(tree.as_raw_fd(), target_abspath)?;
+            continue;
+        }
+
         sys::mount(source_abspath, target_relpath, mount.options.to_ms_flags())?;
     }
     Ok(())
@@ -223,6 +239,11 @@ fn remount_rdonly(container: &Container) -> Result<()> {
             .target
             .strip_prefix('/')
             .ok_or(Error::MountTargetPathMustBeAbsolute(mount.target.clone()))?;
+
+        // mount_setattr(2) set the flags of an idmapped bind already.
+        if mount.options.contains(MountOptions::IDMAP) {
+            continue;
+        }
 
         if mount.options.contains(MountOptions::BIND) {
             let mut options = mount.options.to_ms_flags();

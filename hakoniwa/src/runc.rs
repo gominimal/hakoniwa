@@ -115,7 +115,12 @@ fn exec_imp(
 
     // Close extra FDs.
     let writer_ref = writer.as_ref().expect("writer is some");
-    sys::close_extra_fds_exclude(reader.as_raw_fd(), writer_ref.as_raw_fd())?;
+    let idmap_trees: Vec<_> = command
+        .runtime_idmap_trees
+        .values()
+        .map(|fd| fd.as_raw_fd())
+        .collect();
+    sys::close_extra_fds_exclude(reader.as_raw_fd(), writer_ref.as_raw_fd(), &idmap_trees)?;
 
     // Die with parent.
     sys::set_pdeathsig(Signal::SIGKILL)?;

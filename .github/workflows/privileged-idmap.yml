@@ -96,4 +96,4 @@ jobs:
             exit 1
           fi
           grep -E '^test .* (ok|FAILED)$' control.log
-          grep -q 'test test_privileged_map_onto_own_id_is_unchanged ... ok' control.log
+          grep -q 'test_privileged_map_onto_own_id_is_unchanged ... ok' control.log

@@ -172,8 +172,9 @@ pub(crate) fn setalarm(secs: u64) -> Result<()> {
     Ok(())
 }
 
-pub(crate) fn close_extra_fds_exclude(reader: RawFd, writer: RawFd) -> Result<()> {
-    let mut keep_fds = [reader, writer];
+pub(crate) fn close_extra_fds_exclude(reader: RawFd, writer: RawFd, extra: &[RawFd]) -> Result<()> {
+    let mut keep_fds = vec![reader, writer];
+    keep_fds.extend_from_slice(extra);
     keep_fds.sort_unstable();
 
     unsafe {
@@ -346,6 +347,31 @@ pub(crate) fn mount_filesystem_with_data<P1: AsRef<Path> + Debug, P2: AsRef<Path
         flags,
         Some(data)
     ))
+}
+
+// Not in libc 0.2.186 for musl, which the crate's libc requirement allows;
+// the kernel's value from `include/uapi/linux/mount.h`.
+const MOVE_MOUNT_F_EMPTY_PATH: libc::c_uint = 0x00000004;
+
+pub(crate) fn move_mount<P: AsRef<Path> + Debug>(from: RawFd, target: P) -> Result<()> {
+    let target = target.as_ref();
+    let to = CString::new(target.as_os_str().as_bytes())?;
+    let ret = unsafe {
+        libc::syscall(
+            libc::SYS_move_mount,
+            from,
+            c"".as_ptr(),
+            libc::AT_FDCWD,
+            to.as_ptr(),
+            MOVE_MOUNT_F_EMPTY_PATH,
+        )
+    };
+    if ret < 0 {
+        let err = Errno::last();
+        let err = format!("move_mount({from}, {target:?}) => {err}");
+        return Err(Error::SysError(err));
+    }
+    Ok(())
 }
 
 pub(crate) fn mount_make_private<P: AsRef<Path> + Debug>(target: P) -> Result<()> {

@@ -47,7 +47,7 @@ pub use metric::{ProcPidSmapsRollup, ProcPidStatus, Rusage};
 pub use rlimit::Rlimit;
 pub use runctl::Runctl;
 pub use stdio::Stdio;
-pub use unshare::{MountOptions, Namespace, Network, Pasta};
+pub use unshare::{MountOptions, Namespace, Network, Pasta, idmap_userns};
 
 #[cfg(feature = "cgroups")]
 pub mod cgroups;

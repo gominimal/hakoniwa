@@ -13,6 +13,13 @@ bitflags::bitflags! {
         const NOEXEC = 8;
         const BIND   = 4096;
         const REC    = 16384;
+        /// Bind through an idmapped mount: the main process clones the source
+        /// with `open_tree(2)` and sets the idmap of [`Container::idmap`] with
+        /// `mount_setattr(2)`; the container process moves it into place. It is
+        /// no `mount(2)` flag.
+        ///
+        /// [`Container::idmap`]: crate::Container::idmap
+        const IDMAP  = 1 << 31;
     }
 }
 
@@ -27,6 +34,7 @@ impl MountOptions {
                 Self::NOEXEC => flags.insert(MsFlags::MS_NOEXEC),
                 Self::BIND => flags.insert(MsFlags::MS_BIND),
                 Self::REC => flags.insert(MsFlags::MS_REC),
+                Self::IDMAP => {}
                 _ => {}
             }
         }
@@ -51,10 +59,15 @@ impl std::fmt::Display for Mount {
             _ => {}
         };
 
-        if self.options & MountOptions::RDONLY == MountOptions::RDONLY {
-            write!(f, "bind_ro: {} -> {}", self.source, self.target)
+        let idmapped = if self.options.contains(MountOptions::IDMAP) {
+            " (idmapped)"
         } else {
-            write!(f, "bind_rw: {} -> {}", self.source, self.target)
+            ""
+        };
+        if self.options & MountOptions::RDONLY == MountOptions::RDONLY {
+            write!(f, "bind_ro: {} -> {}{idmapped}", self.source, self.target)
+        } else {
+            write!(f, "bind_rw: {} -> {}{idmapped}", self.source, self.target)
         }
     }
 }

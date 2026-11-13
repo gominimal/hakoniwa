@@ -170,6 +170,9 @@ fn mount_setattr_idmap(
     userns: &OwnedFd,
     recursive: bool,
 ) -> std::io::Result<()> {
+    // `MS_PRIVATE` is a `c_ulong`, 32 bits on some targets, so its cast to
+    // the kernel's `__u64` is a no-op only where `c_ulong` is 64 bits.
+    #[allow(clippy::unnecessary_cast)]
     let attr = libc::mount_attr {
         attr_set,
         attr_clr: 0,

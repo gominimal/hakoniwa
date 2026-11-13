@@ -1,0 +1,83 @@
+name: Privileged id maps
+
+# Fork-only: the root-only tests for the privileged id-map change, which the
+# upstream workflow cannot run (it tests as an unprivileged user), and a control
+# that reverts the change's source and requires those tests to fail.
+on:
+  push:
+    branches:
+      - ci/privileged-idmap
+  workflow_dispatch:
+
+jobs:
+  lints:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - run: |
+          sudo apt-get update
+          sudo apt install libseccomp-dev
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy,rustfmt
+      - run: cargo clippy --all-features --all-targets -- -D warnings
+      - run: cargo fmt --all -- --check
+
+  tests:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, ubuntu-24.04-arm]
+    steps:
+      - run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+      - uses: actions/checkout@v7
+      - run: |
+          sudo apt-get update
+          sudo apt install libseccomp-dev uidmap
+      - uses: dtolnay/rust-toolchain@stable
+      - name: The whole suite, unprivileged
+        run: cargo test --all-features --all-targets -p hakoniwa -- --nocapture
+      - name: The privileged tests, as root
+        working-directory: hakoniwa
+        # An explicit bash adds pipefail, so the tee below does not hide the
+        # tests' exit status.
+        shell: bash
+        run: |
+          BIN=$(cargo test --all-features --test container_test --no-run --message-format=json \
+            | jq -r 'select(.reason=="compiler-artifact" and .target.name=="container_test" and .executable!=null) | .executable')
+          sudo "$BIN" privileged --nocapture --test-threads=1 2>&1 | tee privileged.log
+          grep -q 'test result: ok. 4 passed' privileged.log
+
+  control:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 3
+      # No uidmap package: without the change, a root map that is not onto
+      # root's own id goes to newuidmap, which the control must not find, as a
+      # minimal root filesystem would not carry it.
+      - run: |
+          sudo apt-get update
+          sudo apt install libseccomp-dev
+          ! command -v newuidmap
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Revert the change's source, keep its tests
+        run: git checkout HEAD~2 -- hakoniwa/src && git status --short
+      - name: The privileged tests must fail without the change
+        working-directory: hakoniwa
+        shell: bash
+        run: |
+          BIN=$(cargo test --all-features --test container_test --no-run --message-format=json \
+            | jq -r 'select(.reason=="compiler-artifact" and .target.name=="container_test" and .executable!=null) | .executable')
+          if sudo "$BIN" privileged --nocapture --test-threads=1 2>&1 | tee control.log; then
+            echo "::error::the privileged tests passed without the change; they do not test it"
+            exit 1
+          fi
+          grep -E '^test .* (ok|FAILED)$' control.log
+          grep -q 'test test_privileged_map_onto_own_id_is_unchanged ... ok' control.log

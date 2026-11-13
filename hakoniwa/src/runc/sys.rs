@@ -240,6 +240,11 @@ pub(crate) fn fwrite<P: AsRef<Path> + Debug>(path: P, content: &str) -> Result<(
 }
 
 pub(crate) fn touch<P: AsRef<Path> + Debug>(path: P) -> Result<()> {
+    // A target that exists is not opened for writing: it may sit in a mount
+    // that is already read-only, as an idmapped bind is once it is moved in.
+    if path.as_ref().exists() {
+        return Ok(());
+    }
     OpenOptions::new()
         .create(true)
         .append(true)

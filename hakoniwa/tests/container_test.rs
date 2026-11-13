@@ -716,6 +716,160 @@ mod container_test {
         assert_contains!(String::from_utf8_lossy(&output.stdout), "         1 ");
     }
 
+    // The map a root main process writes in the privileged tests below: the
+    // namespace's root stays root, and uid and gid 1000 map onto 100000.
+    const PRIVILEGED_MAP: [(u32, u32, u32); 2] = [(0, 0, 1), (1000, 100000, 1)];
+
+    fn privileged_container() -> Container {
+        let mut container = Container::new();
+        container.rootfs("/").unwrap();
+        container.uidmaps(&PRIVILEGED_MAP);
+        container.gidmaps(&PRIVILEGED_MAP);
+        container
+    }
+
+    // The arguments that run `script` as uid and gid 1000 with no
+    // supplementary groups, the way a container user drops from the
+    // namespace's root.
+    fn as_mapped_user(script: &str) -> [&str; 6] {
+        [
+            "--reuid=1000",
+            "--regid=1000",
+            "--clear-groups",
+            "/bin/sh",
+            "-c",
+            script,
+        ]
+    }
+
+    #[test]
+    fn test_privileged_map_is_written_by_mainp() {
+        // A root main process writes a map with an entry that is not onto
+        // its own id itself, with no newuidmap.
+        if !Uid::effective().is_root() {
+            return;
+        }
+        let output = privileged_container()
+            .command("/bin/sh")
+            .args(["-c", "cat /proc/self/uid_map /proc/self/gid_map; id -u"])
+            .output()
+            .unwrap();
+        assert!(output.status.success(), "{output:?}");
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let lines: Vec<Vec<&str>> = stdout
+            .lines()
+            .map(|line| line.split_whitespace().collect())
+            .collect();
+        let map = [vec!["0", "0", "1"], vec!["1000", "100000", "1"]];
+        assert_eq!(lines[..2], map, "{stdout}");
+        assert_eq!(lines[2..4], map, "{stdout}");
+        assert_eq!(lines[4], ["0"], "{stdout}");
+    }
+
+    #[test]
+    fn test_privileged_mapped_user_runs_as_its_kernel_id() {
+        // A process that drops to the mapped user runs as kernel uid 100000:
+        // a file it writes through a bind mount is owned, outside, by 100000
+        // and not by root.
+        if !Uid::effective().is_root() {
+            return;
+        }
+        let dir = tempfile::tempdir().unwrap();
+        std::os::unix::fs::chown(dir.path(), Some(100000), Some(100000)).unwrap();
+        let mut container = privileged_container();
+        container
+            .devfsmount("/dev")
+            .tmpfsmount("/tmp")
+            .bindmount_rw(&dir.path().to_string_lossy(), "/mnt");
+        let output = container
+            .command("/usr/bin/setpriv")
+            .args(as_mapped_user(
+                "id -u; id -G; echo y > /tmp/f && echo y > /mnt/out",
+            ))
+            .output()
+            .unwrap();
+        assert!(output.status.success(), "{output:?}");
+        assert_eq!(String::from_utf8_lossy(&output.stdout), "1000\n1000\n");
+        use std::os::unix::fs::MetadataExt;
+        let meta = fs::metadata(dir.path().join("out")).unwrap();
+        assert_eq!((meta.uid(), meta.gid()), (100000, 100000));
+    }
+
+    #[test]
+    fn test_privileged_mapped_user_can_nest_a_userns_and_procfs() {
+        // The mapped user creates its own user, mount and pid namespaces and
+        // mounts a fresh procfs, as a nested sandbox running inside does.
+        if !Uid::effective().is_root() {
+            return;
+        }
+        let output = privileged_container()
+            .command("/usr/bin/setpriv")
+            .args(as_mapped_user(
+                "unshare --user --map-root-user --mount --pid --fork --mount-proc id -u",
+            ))
+            .output()
+            .unwrap();
+        assert!(output.status.success(), "{output:?}");
+        assert_eq!(String::from_utf8_lossy(&output.stdout), "0\n");
+    }
+
+    #[test]
+    fn test_privileged_map_onto_own_id_is_unchanged() {
+        // Root's default map onto its own id is still one line written by
+        // the container process, as before.
+        if !Uid::effective().is_root() {
+            return;
+        }
+        let output = Container::new()
+            .rootfs("/")
+            .unwrap()
+            .command("/bin/cat")
+            .arg("/proc/self/uid_map")
+            .output()
+            .unwrap();
+        assert!(output.status.success(), "{output:?}");
+        let map: Vec<String> = String::from_utf8_lossy(&output.stdout)
+            .split_whitespace()
+            .map(str::to_string)
+            .collect();
+        assert_eq!(map, ["0", "0", "1"]);
+    }
+
+    #[test]
+    fn test_uidmaps_single_line_onto_a_subordinate_id() {
+        // An unprivileged caller's single map onto a subordinate id is not
+        // onto its own id, so the container process cannot write it; the
+        // main process does, through newuidmap and newgidmap.
+        if Uid::effective().is_root() {
+            return;
+        }
+        let user = User::from_uid(Uid::current()).unwrap().unwrap();
+        let sub = |file: &str| -> Option<u32> {
+            fs::read_to_string(file).ok()?.lines().find_map(|line| {
+                let f: Vec<&str> = line.split(':').collect();
+                (f.first() == Some(&user.name.as_str())).then(|| f.get(1)?.parse().ok())?
+            })
+        };
+        let (Some(subuid), Some(subgid)) = (sub("/etc/subuid"), sub("/etc/subgid")) else {
+            return;
+        };
+        let mut container = Container::new();
+        container.rootfs("/").unwrap();
+        container.uidmaps(&[(0, subuid, 1)]);
+        container.gidmaps(&[(0, subgid, 1)]);
+        let output = container
+            .command("/bin/cat")
+            .arg("/proc/self/uid_map")
+            .output()
+            .unwrap();
+        assert!(output.status.success(), "{output:?}");
+        let map: Vec<String> = String::from_utf8_lossy(&output.stdout)
+            .split_whitespace()
+            .map(str::to_string)
+            .collect();
+        assert_eq!(map, ["0".to_string(), subuid.to_string(), "1".to_string()]);
+    }
+
     #[test]
     fn test_gidmaps() {
         let output = Container::new()

@@ -48,6 +48,12 @@ pub struct Container {
     fs_operations: HashMap<String, FsOperation>,
     pub(crate) uidmaps: Option<Vec<IdMap>>,
     pub(crate) gidmaps: Option<Vec<IdMap>>,
+    /// The effective uid and gid of the process that configured the maps.
+    /// A process can write its own single-line map only onto these ids; any
+    /// other map is written by the main process. Captured here because the
+    /// child, once it has unshared its user namespace, reads its own ids as
+    /// the overflow ids until a map is written.
+    pub(crate) idmaps_writer: (u32, u32),
     pub(crate) user: Option<String>,
     pub(crate) group: Option<String>,
     pub(crate) supplementary_groups: Vec<String>,
@@ -112,6 +118,7 @@ impl Container {
             fs_operations: HashMap::new(),
             uidmaps: None,
             gidmaps: None,
+            idmaps_writer: (Uid::effective().as_raw(), Gid::effective().as_raw()),
             user: None,
             group: None,
             supplementary_groups: vec![],
@@ -324,14 +331,23 @@ impl Container {
     }
 
     /// Create new UID maps in new USER namespace.
+    ///
+    /// A single map onto the caller's own effective uid is written by the
+    /// container process itself. Any other map is written by the main
+    /// process: directly when it runs as root, else through `newuidmap`.
     pub fn uidmaps(&mut self, idmaps: &[(u32, u32, u32)]) -> &Self {
         self.uidmaps = Self::idmaps(idmaps);
+        self.idmaps_writer = (Uid::effective().as_raw(), Gid::effective().as_raw());
         self
     }
 
     /// Create new GID maps in new USER namespace.
+    ///
+    /// Written by the container process or the main process by the same
+    /// rule as [`uidmaps`](Self::uidmaps).
     pub fn gidmaps(&mut self, idmaps: &[(u32, u32, u32)]) -> &Self {
         self.gidmaps = Self::idmaps(idmaps);
+        self.idmaps_writer = (Uid::effective().as_raw(), Gid::effective().as_raw());
         self
     }
 
@@ -480,7 +496,13 @@ impl Container {
         }
         let uidmaps = self.uidmaps.clone().unwrap_or_default();
         let gidmaps = self.gidmaps.clone().unwrap_or_default();
-        uidmaps.len() > 1 || gidmaps.len() > 1
+        // The kernel lets a process write its own map only as one line onto
+        // its own effective id; every other map needs the main process.
+        let (euid, egid) = self.idmaps_writer;
+        uidmaps.len() > 1
+            || gidmaps.len() > 1
+            || uidmaps.first().is_some_and(|m| m.host_id != euid)
+            || gidmaps.first().is_some_and(|m| m.host_id != egid)
     }
 
     /// Returns true if the container needs the main process to setup

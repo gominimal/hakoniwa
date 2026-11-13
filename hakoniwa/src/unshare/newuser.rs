@@ -8,6 +8,18 @@ use crate::{Container, error::*};
 pub(crate) use idmap::IdMap;
 
 pub(crate) fn mainp_setup(container: &Container, child: Pid) -> Result<()> {
+    // A main process running as root holds CAP_SETUID and CAP_SETGID in the
+    // parent namespace, so the kernel lets it write any map itself, and no
+    // setuid helper has to be installed for it.
+    if nix::unistd::Uid::effective().is_root() {
+        let uidmaps = container.uidmaps.clone().unwrap_or_default();
+        mainp_write_idmap("uid_map", &uidmaps, child)?;
+        let gidmaps = container.gidmaps.clone().unwrap_or_default();
+        mainp_write_idmap("gid_map", &gidmaps, child)?;
+        log::debug!("================================");
+        return Ok(());
+    }
+
     let program = "newuidmap";
     let uidmaps = container.uidmaps.clone().unwrap_or_default();
     mainp_setup_newidmap(program, &uidmaps, child)?;
@@ -17,6 +29,21 @@ pub(crate) fn mainp_setup(container: &Container, child: Pid) -> Result<()> {
     mainp_setup_newidmap(program, &gidmaps, child)?;
 
     log::debug!("================================");
+    Ok(())
+}
+
+fn mainp_write_idmap(file: &str, idmaps: &[IdMap], child: Pid) -> Result<()> {
+    if idmaps.is_empty() {
+        return Ok(());
+    }
+
+    let path = format!("/proc/{child}/{file}");
+    let lines: String = idmaps.iter().map(IdMap::to_line).collect();
+    log::debug!("Configuring UID/GID mapping: Write: {path}: {lines:?}");
+    std::fs::write(&path, lines).map_err(|err| {
+        let errmsg = format!("{path}: {err}");
+        ProcessErrorKind::SetupUGidmapFailed(errmsg)
+    })?;
     Ok(())
 }
 

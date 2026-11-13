@@ -52,6 +52,14 @@ jobs:
             | jq -r 'select(.reason=="compiler-artifact" and .target.name=="container_test" and .executable!=null) | .executable')
           sudo "$BIN" privileged --nocapture --test-threads=1 2>&1 | tee privileged.log
           grep -q 'test result: ok. 4 passed' privileged.log
+      - name: The idmapped-bind tests, as root
+        working-directory: hakoniwa
+        shell: bash
+        run: |
+          BIN=$(cargo test --all-features --test idmap_test --no-run --message-format=json \
+            | jq -r 'select(.reason=="compiler-artifact" and .target.name=="idmap_test" and .executable!=null) | .executable')
+          sudo "$BIN" --nocapture --test-threads=1 2>&1 | tee idmap.log
+          grep -q 'test result: ok. 4 passed' idmap.log
 
   control:
     runs-on: ubuntu-24.04
